@@ -142,51 +142,56 @@ export default function ProductsPage() {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300 mb-2">Product Title <span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><Tag className="w-5 h-5" /></div>
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                      {/* <Tag className="w-5 h-5" /> */}
+                      </div>
                     <Field name="title" type="text" className="input-base pl-10" placeholder="e.g. Premium Wireless Headphones" />
                   </div>
-                  <ErrorMessage name="title" component="p" className="text-error text-xs mt-1" />
+                  <ErrorMessage name="title" component="p" className="text-error text-xs mt-1 text-red-400" />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300 mb-2">Description <span className="text-red-500">*</span></label>
                   <Field as="textarea" rows="3" name="description" className="input-base" placeholder="Enter detailed product description..." />
-                  <ErrorMessage name="description" component="p" className="text-error text-xs mt-1" />
+                  <ErrorMessage name="description" component="p" className="text-error text-xs mt-1 text-red-400" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Price (₹) <span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><DollarSign className="w-5 h-5" /></div>
-                    <Field name="price" type="number" step="0.01" className="input-base pl-10" placeholder="   99.99" />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"></div>
+                    <Field name="price" type="number" step="0.01" className="input-base pl-10" 
+                    placeholder="e.g. 299" />
                   </div>
-                  <ErrorMessage name="price" component="p" className="text-error text-xs mt-1" />
+                  <ErrorMessage name="price" component="p" className="text-error text-xs mt-1 text-red-400" />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Stock Quantity <span className="text-red-500">*</span></label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><Box className="w-5 h-5" /></div>
-                    <Field name="stock" type="number" className="input-base pl-10" placeholder="   500" />
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
+                      {/* <Box className="w-5 h-5" /> */}
+                      </div>   
+                    <Field name="stock" type="number" className="input-base pl-10" placeholder="e.g. 500" /> 
                   </div>
-                  <ErrorMessage name="stock" component="p" className="text-error text-xs mt-1" />
+                  <ErrorMessage name="stock" component="p" className="text-error text-xs mt-1 text-red-400" />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300 mb-2">Category <span className="text-red-500">*</span></label>
-                  <Field as="select" name="category" className="input-base bg-slate-800">
+                  <Field as="select" name="category" className="input-base bg-gray-800">
                     <option value="">Select a category</option>
                     <option value="Men">Men</option>
                     <option value="Women">Women</option>
                     <option value="Accessories">Accessories</option>
                   </Field>
-                  <ErrorMessage name="category" component="p" className="text-error text-xs mt-1" />
+                  <ErrorMessage name="category" component="p" className="text-error text-xs mt-1 text-red-400" />
                 </div>
 
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-slate-300 mb-2">Image URL <span className="text-red-500">*</span></label>
                   <Field type="text" name="imageUrl" className="input-base bg-slate-800" placeholder="https://example.com/image.jpg" />
-                  <ErrorMessage name="imageUrl" component="p" className="text-error text-xs mt-1" />
+                  <ErrorMessage name="imageUrl" component="p" className="text-error text-xs mt-1 text-red-400" />
                 </div>
 
                 <div className="md:col-span-2 flex justify-end gap-3 mt-4 border-t border-slate-800 pt-4">
