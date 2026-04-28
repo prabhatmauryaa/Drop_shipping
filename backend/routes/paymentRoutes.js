@@ -13,9 +13,17 @@ const razorpay = new Razorpay({
  key_secret: process.env.RAZORPAY_SECRET || "dummy_secret_key_67890",
 });
 
+// @desc Get Razorpay Key ID
+router.get("/key", authMiddleware, (req, res) => {
+  res.json({ key: process.env.RAZORPAY_KEY_ID || "rzp_test_dummykey12345" });
+});
+
 // @desc Create Razorpay Order
 router.post("/create-order", authMiddleware, async (req, res) => {
  try {
+   if (req.user.role === "admin" || req.user.role === "supplier") {
+     return res.status(403).json({ message: "Suppliers and Admins are not allowed to place orders." });
+   }
  const { amount } = req.body;
  
  const options = {
@@ -38,6 +46,9 @@ router.post("/create-order", authMiddleware, async (req, res) => {
 // @desc Verify Razorpay Payment Details
 router.post("/verify", authMiddleware, async (req, res) => {
  try {
+   if (req.user.role === "admin" || req.user.role === "supplier") {
+     return res.status(403).json({ message: "Suppliers and Admins are not allowed to place orders." });
+   }
  const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
  
  // Verifying the signature

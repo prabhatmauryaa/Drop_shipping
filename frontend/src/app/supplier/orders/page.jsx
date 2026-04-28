@@ -7,12 +7,11 @@ import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function OrdersPage() {
   const router = useRouter();
-  const params = useParams();
-  const urlRole = params.role;
+  const urlRole = 'supplier';
   const [orders, setOrders] = useState([]);
  const [loading, setLoading] = useState(true);
  const [selectedOrder, setSelectedOrder] = useState(null);
@@ -182,6 +181,21 @@ export default function OrdersPage() {
  </div>
  </div>
 
+  <div className="bg-slate-800/30 border border-slate-700 p-4 rounded-xl">
+  <h3 className="text-sm font-bold text-white mb-2 flex items-center gap-2">Payment Method</h3>
+  <div className="text-sm font-semibold text-slate-300">
+    {selectedOrder.paymentMethod === "Razorpay" ? (
+      <span className="text-purple-400 bg-purple-500/10 px-3 py-1 rounded-xl border border-purple-500/20 flex items-center gap-1.5 w-fit font-bold text-xs">
+         Online (Razorpay)
+      </span>
+    ) : (
+      <span className="text-blue-400 bg-blue-500/10 px-3 py-1 rounded-xl border border-blue-500/20 flex items-center gap-1.5 w-fit font-bold text-xs">
+         Cash on Delivery (COD)
+      </span>
+    )}
+  </div>
+  </div>
+
  <div>
  <label className="text-sm text-slate-400 mb-1 block">Order Status</label>
  <select 
@@ -226,7 +240,7 @@ export default function OrdersPage() {
  {item.name}
  </Link>
  <div className="flex justify-between items-center mt-1">
- <span className="text-xs text-slate-400">Qty: {item.qty}</span>
+ <span className="text-xs text-slate-400">Qty: {item.qty} {item.size ? `| Size: ${item.size}` : ""}</span>
  <span className="text-xs font-bold text-green-400">₹{item.price.toFixed(2)}</span>
  </div>
  </div>

@@ -9,6 +9,9 @@ const router = express.Router();
 // @desc Create new order 
 router.post("/", authMiddleware, async (req, res) => {
  try {
+ if (req.user.role === "admin" || req.user.role === "supplier") {
+ return res.status(403).json({ message: "Suppliers and Admins are not allowed to place orders." });
+ }
  const { orderItems, shippingAddress, paymentMethod, itemsPrice, taxPrice, shippingPrice, totalPrice, isFastDelivery } = req.body;
 
  if (orderItems && orderItems.length === 0) {

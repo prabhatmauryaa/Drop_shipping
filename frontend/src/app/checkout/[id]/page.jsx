@@ -11,6 +11,7 @@ function CheckoutContent({ params }) {
  const router = useRouter();
  const searchParams = useSearchParams();
  const qty = parseInt(searchParams.get("qty") || "1", 10);
+ const size = searchParams.get("size") || "";
  
  const unwrappedParams = use(params);
  const { id } = unwrappedParams;
@@ -29,9 +30,23 @@ function CheckoutContent({ params }) {
  const [isProcessing, setIsProcessing] = useState(false);
 
  useEffect(() => {
- const fetchProduct = async () => {
- try {
- const res = await axios.get("http://localhost:5000/api/products");
+    const ustr = localStorage.getItem("dropsync_user");
+    if (ustr) {
+      try {
+        const user = JSON.parse(ustr);
+        if (user.role === 'admin' || user.role === 'supplier') {
+          toast.error("Suppliers and Admins are not allowed to place orders.");
+          router.push("/");
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    const fetchProduct = async () => {
+      try {
+        const res = await axios.get("http://localhost:5000/api/products");
  const found = res.data.find(p => p._id === id);
  if (found) setProduct(found);
  else toast.error("Product not found");
@@ -66,6 +81,7 @@ function CheckoutContent({ params }) {
  name: product.title, 
  qty: qty, 
  price: product.price, 
+ size: size || null,
  supplier: product.supplier?._id || product.supplier || product.seller?._id || product.seller || "000000000000000000000000"
  }],
  shippingAddress: { 
@@ -243,7 +259,7 @@ function CheckoutContent({ params }) {
  </div>
  <div className="flex-1">
  <p className="font-bold text-white line-clamp-1">{product.title}</p>
- <p className="text-sm text-slate-400">Qty: {qty}</p>
+ <p className="text-sm text-slate-400">Qty: {qty} {size ? `| Size: ${size}` : ""}</p>
  <p className="font-bold text-green-400">₹{product.price.toFixed(2)}</p>
  </div>
  </div>

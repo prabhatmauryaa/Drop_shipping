@@ -41,8 +41,23 @@ function CheckoutContent() {
     };
 
     useEffect(() => {
+        const ustr = localStorage.getItem("dropsync_user");
+        if (ustr) {
+            try {
+                const user = JSON.parse(ustr);
+                if (user.role === 'admin' || user.role === 'supplier') {
+                    toast.error("Suppliers and Admins are not allowed to place orders.");
+                    router.push("/");
+                    return;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
         try {
             const savedCart = localStorage.getItem("dropsync_checkout_cart");
+
             if (savedCart) {
                 const items = JSON.parse(savedCart);
                 setCartItems(items);
@@ -129,6 +144,7 @@ function CheckoutContent() {
             name: item.title,
             qty: item.qty,
             price: item.price,
+            size: item.size || null,
             supplier: item.supplier || "000000000000000000000000"
         }));
 
@@ -164,13 +180,17 @@ function CheckoutContent() {
             } 
             else if (paymentMethod === "Razorpay") {
                 toast.loading("Initializing Secure Payment...", { id: "payment" });
+                const keyRes = await axios.get("http://localhost:5000/api/payments/key", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
                 const orderRes = await axios.post("http://localhost:5000/api/payments/create-order", 
                     { amount: totalPrice }, 
                     { headers: { Authorization: `Bearer ${token}` }}
                 );
                 
                 const options = {
-                    key: "rzp_test_dummykey12345", 
+                    key: keyRes.data.key,
                     amount: orderRes.data.amount,
                     currency: "INR",
                     name: "Vastra culture Marketplace",
@@ -347,7 +367,7 @@ function CheckoutContent() {
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-white text-sm line-clamp-1">{item.title}</p>
-                                        <p className="text-xs text-slate-400">Qty: {item.qty}</p>
+                                        <p className="text-xs text-slate-400">Qty: {item.qty} {item.size ? `| Size: ${item.size}` : ""}</p>
                                     </div>
                                     <div className="text-right flex-shrink-0">
                                         <p className="font-bold text-green-400 text-sm">₹{(item.price * item.qty).toFixed(2)}</p>

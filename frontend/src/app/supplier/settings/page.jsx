@@ -1,15 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+
 import AdminLayout from "../../../components/AdminLayout";
 import { Settings, User, Lock, Bell, Shield, Save, Globe, Smartphone, Mail } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios"; 
 
 export default function SettingsPage() {
-    const params = useParams();
-    const role = params.role;
+    const role = 'supplier';
     const [user, setUser] = useState(null);
     const [activeTab, setActiveTab] = useState("profile");
     const [loading, setLoading] = useState(false);
@@ -85,7 +84,6 @@ export default function SettingsPage() {
         { id: "profile", name: "Profile Settings", icon: <User className="w-4 h-4" /> },
         { id: "security", name: "Security", icon: <Lock className="w-4 h-4" /> },
         { id: "notifications", name: "Notifications", icon: <Bell className="w-4 h-4" /> },
-        { id: "business", name: role === "admin" ? "Platform Settings" : "Supplier Config", icon: <Shield className="w-4 h-4" /> },
     ];
 
     return (
@@ -227,18 +225,7 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        {activeTab === "business" && (
-                            <div className="space-y-6">
-                                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                                    <Shield className="text-indigo-400" /> {role === "admin" ? "Platform Control" : "Business Configuration"}
-                                </h3>
-                                <div className="p-10 text-center border-2 border-dashed border-slate-800 rounded-3xl">
-                                    <Globe className="w-12 h-12 text-slate-700 mx-auto mb-4" />
-                                    <p className="text-slate-500 text-sm italic font-medium">Advanced {role} configuration modules are being updated.</p>
-                                    <button className="mt-4 text-blue-400 text-xs font-bold uppercase tracking-widest hover:text-blue-300">Request Beta Access</button>
-                                </div>
-                            </div>
-                        )}
+
                     </div>
                 </div>
             </div>

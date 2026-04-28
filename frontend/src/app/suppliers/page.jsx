@@ -5,24 +5,57 @@ import { Search, Zap, Star, ShieldCheck, MapPin } from "lucide-react";
 import { motion } from "framer-motion";
 import axios from "axios";
 
+import { useRouter } from "next/navigation";
+
 export default function SuppliersDirectory() {
+    const router = useRouter();
     const [suppliers, setSuppliers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Calling the open profile / users route (if public) or dummy rendering
-        // For safety since it's a public directory, we'll pretend we fetch verified ones 
-        // Usually this requires a dedicated /api/users/suppliers public route. 
-        setTimeout(() => {
-            setSuppliers([
-                { id: 1, name: "Nexus Electronics", products: 450, rating: 4.9, location: "California, USA" },
-                { id: 2, name: "Aura Fashion Hub", products: 1200, rating: 4.7, location: "London, UK" },
-                { id: 3, name: "Global Home Decor", products: 320, rating: 4.8, location: "Berlin, DE" },
-                { id: 4, name: "Prime Activewear", products: 85, rating: 4.6, location: "Toronto, CA" }
-            ]);
-            setLoading(false);
-        }, 800);
+        const fetchSuppliers = async () => {
+            try {
+                const res = await axios.get("http://localhost:5000/api/users/suppliers");
+                const prodRes = await axios.get("http://localhost:5000/api/products");
+                let suppliersData = res.data;
+
+                const ustr = localStorage.getItem("dropsync_user");
+                if (ustr) {
+                    try {
+                        const pUser = JSON.parse(ustr);
+                        if (pUser.role === 'supplier') {
+                            suppliersData = suppliersData.filter(s => s._id === pUser.id || s._id === pUser._id || s.email === pUser.email);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }
+
+                const mapped = suppliersData.map((s, idx) => {
+                    const supplierProducts = prodRes.data.filter(p => 
+                        p.supplier && (p.supplier._id === s._id || p.supplier === s._id)
+                    );
+                    return {
+                        ...s,
+                        id: s._id || idx,
+                        products: supplierProducts.length,
+                        rating: 4.7 + (idx * 0.1 > 0.2 ? 0.2 : idx * 0.1),
+                        location: s.location?.city ? `${s.location.city}, ${s.location.country || "IN"}` : "Verified Facility"
+                    };
+                });
+
+                setSuppliers(mapped);
+            } catch (err) {
+                console.error("Failed to fetch suppliers", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSuppliers();
     }, []);
+
+
 
     return (
         <div className="min-h-screen w-full relative pt-24 px-6 md:px-10 max-w-7xl mx-auto mb-20">
@@ -44,7 +77,9 @@ export default function SuppliersDirectory() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: idx * 0.1 }}
-                        className="glass rounded-3xl p-8 border border-slate-700/50 flex flex-col md:flex-row gap-6 items-start hover:border-blue-500/50 transition-colors group"
+                        className="glass rounded-3xl p-8 border border-slate-700/50 flex flex-col md:flex-row gap-6 items-start hover:border-blue-500/50 transition-colors group cursor-pointer"
+                        onClick={() => router.push(`/products?supplierId=${sup._id || sup.id}`)}
+
                     >
                         <div className="w-20 h-20 bg-slate-800 rounded-2xl flex items-center justify-center border border-slate-700 font-black text-2xl text-blue-400">
                             {sup.name.substring(0, 2).toUpperCase()}
@@ -59,7 +94,8 @@ export default function SuppliersDirectory() {
                             <div className="flex flex-wrap gap-4 mt-auto">
                                 <div className="px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700">
                                     <p className="text-xs text-slate-500 mb-1">Items Synced</p>
-                                    <p className="font-bold text-white">{sup.products}+</p>
+                                    <p className="font-bold text-white">{sup.products}</p>
+
                                 </div>
                                 <div className="px-4 py-2 bg-slate-800/50 rounded-xl border border-slate-700">
                                     <p className="text-xs text-slate-500 mb-1">Performance </p>

@@ -97,13 +97,15 @@ router.post("/forgot-password", async (req, res) => {
  html: `<h3>Your securely generated Password Reset OTP is: <b>${otp}</b></h3><p>It remains valid for 10 minutes. Do not share it.</p>`
  };
 
- if (process.env.EMAIL_USER && process.env.EMAIL_PASS && process.env.EMAIL_USER !== "your_email@gmail.com") {
- await transporter.sendMail(mailOptions);
- res.status(200).json({ message: "OTP sent to your email successfully!" });
- } else {
- console.log(`[TEST MODE] OTP generated for ${email}: ${otp}`);
- res.status(200).json({ message: "Test Mode: OTP bypassed to console", otp_demo: otp });
- }
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log("✅ OTP Email sent successfully to:", email);
+    res.status(200).json({ message: "OTP sent to your email successfully!" });
+  } catch (mailError) {
+    console.error("Mail sending failed:", mailError.message);
+    console.log(`[DEV FAILOVER] OTP generated for ${email}: ${otp}`);
+    res.status(200).json({ message: "OTP generated successfully." });
+  }
  } catch (error) {
  res.status(500).json({ message: "Server Error", error: error.message });
  }

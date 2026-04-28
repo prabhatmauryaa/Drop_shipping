@@ -15,6 +15,18 @@ export default function ProductsPage() {
  const [products, setProducts] = useState([]);
  const [filteredProducts, setFilteredProducts] = useState([]);
  const [loading, setLoading] = useState(true);
+ const [userRole, setUserRole] = useState(null);
+
+ useEffect(() => {
+   const ustr = localStorage.getItem("dropsync_user");
+   if (ustr) {
+     try {
+       setUserRole(JSON.parse(ustr).role);
+     } catch (e) {
+       console.error(e);
+     }
+   }
+ }, []);
 
  // Filters State
  const [searchTerm, setSearchTerm] = useState("");
@@ -22,6 +34,8 @@ export default function ProductsPage() {
  const [priceRange, setPriceRange] = useState(10000); // Active slider value
  const [categories, setCategories] = useState(["All", "Men", "Women", "Accessories"]);
  const [maxPriceDefault, setMaxPriceDefault] = useState(10000); // Dynamic max slider range limit
+ const [selectedSupplier, setSelectedSupplier] = useState(null);
+
 
  useEffect(() => {
  const fetchProducts = async () => {
@@ -57,40 +71,52 @@ export default function ProductsPage() {
  fetchProducts();
  }, []);
 
- // Read query parameters from URL
- useEffect(() => {
- const categoryParam = searchParams.get("category");
- const searchParam = searchParams.get("search");
+  // Read query parameters from URL
+  useEffect(() => {
+    const categoryParam = searchParams.get("category");
+    const searchParam = searchParams.get("search");
+    const supplierParam = searchParams.get("supplierId");
 
- if (categoryParam) {
- // Capitalize the category parameter to match the state
- const capitalizedCategory = categoryParam.charAt(0).toUpperCase() + categoryParam.slice(1).toLowerCase();
- setSelectedCategory(capitalizedCategory);
- }
+    if (categoryParam) {
+      const capitalizedCategory = categoryParam.charAt(0).toUpperCase() + categoryParam.slice(1).toLowerCase();
+      setSelectedCategory(capitalizedCategory);
+    }
 
- if (searchParam) {
- setSearchTerm(searchParam);
- }
- }, [searchParams]);
+    if (searchParam) {
+      setSearchTerm(searchParam);
+    }
 
- useEffect(() => {
- // Apply Filters
- let result = products;
+    if (supplierParam) {
+      setSelectedSupplier(supplierParam);
+    }
+  }, [searchParams]);
 
- if (searchTerm) {
- result = result.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
- }
 
- if (selectedCategory !== "All") {
- result = result.filter(p => 
- p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()
- );
- }
+  useEffect(() => {
+    // Apply Filters
+    let result = products;
 
- result = result.filter(p => p.price <= priceRange);
+    if (searchTerm) {
+      result = result.filter(p => p.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    }
 
- setFilteredProducts(result);
- }, [searchTerm, selectedCategory, priceRange, products]);
+    if (selectedCategory !== "All") {
+      result = result.filter(p => 
+        p.category && p.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    if (selectedSupplier) {
+      result = result.filter(p => 
+        p.supplier && (p.supplier._id === selectedSupplier || p.supplier === selectedSupplier)
+      );
+    }
+
+    result = result.filter(p => p.price <= priceRange);
+
+    setFilteredProducts(result);
+  }, [searchTerm, selectedCategory, priceRange, selectedSupplier, products]);
+
 
  return (
  <div className="w-full relative z-10 flex flex-col min-h-screen pt-24 px-4 pb-20 max-w-7xl mx-auto">
@@ -195,7 +221,7 @@ export default function ProductsPage() {
  >
  <div className="h-48 w-full bg-slate-800 relative overflow-hidden flex items-center justify-center">
  {product.imageUrl ? (
- <img src={product.imageUrl} alt={product.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+ <img src={product.imageUrl} alt={product.title} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" />
  ) : (
  <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 group-hover:scale-110 transition-transform duration-700"></div>
  )}
@@ -238,13 +264,15 @@ export default function ProductsPage() {
  <span className="text-slate-500 text-xs line-through block"> ₹{(product.price * 1.2).toFixed(2)}</span>
  <span className="text-green-400 font-black text-xl">₹{product.price.toFixed(2)}</span>
  </div>
- <button
- onClick={(e) => { e.stopPropagation(); router.push(`/checkout/${product._id}?qty=1`); }}
- className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95"
- title="Buy Now"
- >
- <ShoppingCart className="w-5 h-5" />
- </button>
+ {userRole !== 'admin' && userRole !== 'supplier' && (
+   <button
+     onClick={(e) => { e.stopPropagation(); router.push(`/checkout/${product._id}?qty=1`); }}
+     className="bg-blue-600 hover:bg-blue-500 text-white p-3 rounded-xl shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95"
+     title="Buy Now"
+   >
+     <ShoppingCart className="w-5 h-5" />
+   </button>
+ )}
  </div>
  </div>
  </motion.div>

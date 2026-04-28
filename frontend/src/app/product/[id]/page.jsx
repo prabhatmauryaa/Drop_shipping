@@ -23,6 +23,20 @@ export default function ProductDetailPage({ params }) {
  const [recommendations, setRecommendations] = useState([]);
  const [loading, setLoading] = useState(true);
  const [qty, setQty] = useState(1);
+ const [selectedSize, setSelectedSize] = useState("");
+ const [activeImage, setActiveImage] = useState("");
+ const [userRole, setUserRole] = useState(null);
+
+ useEffect(() => {
+   const ustr = localStorage.getItem("dropsync_user");
+   if (ustr) {
+     try {
+       setUserRole(JSON.parse(ustr).role);
+     } catch (e) {
+       console.error(e);
+     }
+   }
+ }, []);
 
  useEffect(() => {
  const fetchProduct = async () => {
@@ -31,6 +45,7 @@ export default function ProductDetailPage({ params }) {
  const found = res.data.find(p => p._id === id);
  if(found) {
  setProduct(found);
+ setActiveImage(found.imageUrl || found.images?.[0] || "");
  const recs = res.data.filter(p => p.category === found.category && p._id !== found._id).slice(0, 4);
  setRecommendations(recs);
  }
@@ -44,22 +59,31 @@ export default function ProductDetailPage({ params }) {
  }, [id]);
 
  const handleBuyNow = () => {
- router.push(`/checkout/${id}?qty=${qty}`);
+   if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+     toast.error("Please select a size");
+     return;
+   }
+   router.push(`/checkout/${id}?qty=${qty}${selectedSize ? `&size=${selectedSize}` : ""}`);
  };
 
  const handleAddToCart = () => {
- addToCart({
- _id: product._id,
- id: product._id,
- title: product.title,
- price: product.price,
- imageUrl: product.imageUrl || null,
- stock: product.stock,
- category: product.category,
- supplier: product.supplier?._id || product.supplier || "000000000000000000000000",
- quantity: qty,
- qty: qty,
- });
+   if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+     toast.error("Please select a size");
+     return;
+   }
+   addToCart({
+     _id: product._id,
+     id: product._id,
+     title: product.title,
+     price: product.price,
+     imageUrl: product.imageUrl || null,
+     stock: product.stock,
+     category: product.category,
+     supplier: product.supplier?._id || product.supplier || "000000000000000000000000",
+     quantity: qty,
+     qty: qty,
+     size: selectedSize || null,
+   });
  toast.success(`${product.title} added to cart!`);
  };
 
@@ -92,9 +116,9 @@ export default function ProductDetailPage({ params }) {
  initial={{ scale: 1.1, opacity: 0 }}
  animate={{ scale: 1, opacity: 1 }}
  transition={{ duration: 0.5 }}
- src={product.imageUrl} 
+ src={activeImage || product.imageUrl} 
  alt={product.title} 
- className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" 
+ className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-700" 
  />
  ) : (
  <ShoppingCart className="w-24 h-24 text-slate-600" />
@@ -130,6 +154,21 @@ export default function ProductDetailPage({ params }) {
  </button>
  </div>
  </div>
+ {product.images && product.images.length > 1 && (
+    <div className="flex gap-3 mt-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-800">
+      {product.images.slice(0, 5).map((img, idx) => (
+        <button
+          key={idx}
+          onClick={() => setActiveImage(img)}
+          className={`w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all ${
+            (activeImage || product.imageUrl) === img ? "border-blue-500 scale-95" : "border-slate-700 hover:border-slate-500"
+          }`}
+        >
+          <img src={img} alt={`Product thumbnail ${idx + 1}`} className="w-full h-full object-contain bg-slate-900" />
+        </button>
+      ))}
+    </div>
+  )}
  </div>
 
  {/* Product Context Details */}
@@ -156,26 +195,60 @@ export default function ProductDetailPage({ params }) {
  <span className="text-xl text-slate-500 line-through">₹{(product.price * 1.3).toFixed(2)}</span>
  </div>
  
- <div className="flex items-center gap-4 mb-8">
- <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl h-14">
- <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-12 h-full flex items-center justify-center text-slate-400 hover:text-white font-bold text-xl transition-colors">-</button>
- <span className="w-12 text-center text-white font-bold">{qty}</span>
- <button onClick={() => setQty(Math.min(product.stock, qty + 1))} className="w-12 h-full flex items-center justify-center text-slate-400 hover:text-white font-bold text-xl transition-colors">+</button>
- </div>
- <button 
- onClick={handleAddToCart}
- className="flex-1 h-14 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700 transition-colors"
- >
- <ShoppingCart className="w-5 h-5" /> Add to Cart
- </button>
- </div>
+ {/* Sizes Selection */}
+ {product.sizes && product.sizes.length > 0 && (
+   <div className="mb-6">
+     <label className="block text-sm font-semibold text-slate-300 mb-2">Select Size</label>
+     <div className="flex flex-wrap gap-2">
+       {product.sizes.map((size) => (
+         <button
+           key={size}
+           type="button"
+           onClick={() => setSelectedSize(size)}
+           className={`px-4 py-2 rounded-xl border font-bold text-sm transition-all ${
+             selectedSize === size
+               ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-500/20"
+               : "bg-slate-900 text-slate-300 border-slate-700 hover:border-slate-500"
+           }`}
+         >
+           {size}
+         </button>
+       ))}
+     </div>
+   </div>
+ )}
 
- <button 
- onClick={handleBuyNow}
- className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-[0.98] shadow-lg shadow-blue-500/20"
- >
- <CreditCard className="w-6 h-6" /> Buy it Now 
- </button>
+  {userRole === 'admin' || userRole === 'supplier' ? (
+    <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 text-center mb-8">
+      <p className="text-amber-400 text-sm font-bold flex items-center justify-center gap-2">
+        <ShieldCheck className="w-5 h-5" /> Admins and Suppliers are not allowed to place orders.
+      </p>
+    </div>
+  ) : (
+    <>
+      <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center bg-slate-900 border border-slate-700 rounded-xl h-14">
+          <button onClick={() => setQty(Math.max(1, qty - 1))} className="w-12 h-full flex items-center justify-center text-slate-400 hover:text-white font-bold text-xl transition-colors">-</button>
+          <span className="w-12 text-center text-white font-bold">{qty}</span>
+          <button onClick={() => setQty(Math.min(product.stock, qty + 1))} className="w-12 h-full flex items-center justify-center text-slate-400 hover:text-white font-bold text-xl transition-colors">+</button>
+        </div>
+        <button 
+          onClick={handleAddToCart}
+          className="flex-1 h-14 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 border border-slate-700 transition-colors"
+        >
+          <ShoppingCart className="w-5 h-5" /> Add to Cart
+        </button>
+      </div>
+
+      <button 
+        onClick={handleBuyNow}
+        className="w-full h-14 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-[0.98] shadow-lg shadow-blue-500/20"
+      >
+        <CreditCard className="w-6 h-6" /> Buy it Now 
+      </button>
+    </>
+  )}
+
 
  <div className="mt-6 flex items-center justify-center gap-6 border-t border-slate-800 pt-6">
  <div className="flex items-center gap-2 text-slate-400 text-sm font-medium"><ShieldCheck className="w-5 h-5 text-green-500" /> Secure Checkout</div>
@@ -202,7 +275,7 @@ export default function ProductDetailPage({ params }) {
  >
  <div className="h-40 w-full bg-slate-800 relative overflow-hidden">
  {rec.imageUrl ? (
- <img src={rec.imageUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={rec.title} />
+ <img src={rec.imageUrl} className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700" alt={rec.title} />
  ) : (
  <div className="h-full w-full flex items-center justify-center"><Box className="w-10 h-10 text-slate-600" /></div>
  )}

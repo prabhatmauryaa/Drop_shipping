@@ -19,7 +19,7 @@ export default function SuppliersPage() {
  const res = await axios.get("http://localhost:5000/api/users/all", {
  headers: { Authorization: `Bearer ${token}` }
  });
- // Filter only suppliers for setSuppliers(res.data.filter(u => u.role === "supplier"));
+  setSuppliers(res.data.filter(u => u.role === "supplier"));
  } catch (error) {
  toast.error("Failed to load suppliers");
  } finally {
@@ -69,7 +69,8 @@ export default function SuppliersPage() {
  <tr key={sup._id} className="hover:bg-slate-800/30 transition-colors">
  <td className="px-6 py-4">
  <div className="font-bold text-white">{sup.name}</div>
- <div className="text-xs text-green-400 font-medium tracking-wide">Verified</div>
+ <div className="text-[10px] font-mono text-slate-500 mt-0.5">ID: {sup._id}</div>
+ <div className="text-xs text-green-400 font-medium tracking-wide mt-0.5">Verified</div>
  </td>
  <td className="px-6 py-4 text-slate-300">{sup.email}</td>
  <td className="px-6 py-4">

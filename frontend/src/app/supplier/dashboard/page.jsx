@@ -5,21 +5,20 @@ import AdminLayout from "../../../components/AdminLayout";
 import { motion } from "framer-motion";
 import { Users, PackageOpen, LayoutDashboard, ShoppingBag, ArrowUpRight, ArrowDownRight, DollarSign, Repeat, PackageCheck, Star, ShieldCheck, Plus, Trash2, Edit, Clock, CheckCircle, Info, MapPin } from "lucide-react";
 import axios from "axios";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function DashboardPage() {
     const router = useRouter();
-    const params = useParams();
-    const urlRole = params.role; // The role from the URL path: /admin/dashboard or /supplier/dashboard
-    
+    const urlRole = 'supplier'; // Hardcoded since we are in the supplier route
+
     const [stats, setStats] = useState({
         totalUsers: 0,
         totalProducts: 0,
-        totalSales: 0, 
-        activeOrders: 0 
+        totalSales: 0,
+        activeOrders: 0
     });
-    
+
     const [recentOrders, setRecentOrders] = useState([]);
     const [reviews, setReviews] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -33,21 +32,21 @@ export default function DashboardPage() {
                 const user = JSON.parse(storedUser);
                 const token = localStorage.getItem("dropsync_token");
                 const headers = { Authorization: `Bearer ${token}` };
-                
+
                 const [usersRes, productsRes, ordersRes, reviewsRes] = await Promise.all([
                     user.role === 'admin' ? axios.get("http://localhost:5000/api/users/all", { headers }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                     axios.get("http://localhost:5000/api/products/dashboard", { headers }).catch(() => ({ data: [] })),
                     axios.get("http://localhost:5000/api/orders", { headers }).catch(() => ({ data: [] })),
                     axios.get("http://localhost:5000/api/reviews/dashboard-reviews", { headers }).catch(() => ({ data: [] }))
                 ]);
-                
+
                 const orders = ordersRes.data || [];
                 let sales = 0;
                 let pending = 0;
-                
+
                 orders.forEach(o => {
-                    if(o.status !== "Cancelled") sales += o.totalPrice;
-                    if(["Pending", "Forwarded", "Dispatched", "Out for Delivery"].includes(o.status)) pending++;
+                    if (o.status !== "Cancelled") sales += o.totalPrice;
+                    if (["Pending", "Forwarded", "Dispatched", "Out for Delivery"].includes(o.status)) pending++;
                 });
 
                 const isSupplier = user.role === 'supplier';
@@ -59,7 +58,7 @@ export default function DashboardPage() {
                     activeOrders: pending,
                     pendingApprovals: isSupplier ? (productsRes.data || []).filter(p => p.status === "pending").length : 0
                 });
-                
+
                 setRecentOrders(orders.slice(-5).reverse());
                 setReviews(reviewsRes.data || []);
 
@@ -84,7 +83,7 @@ export default function DashboardPage() {
         navigator.geolocation.getCurrentPosition(async (pos) => {
             try {
                 const token = localStorage.getItem("dropsync_token");
-                await axios.put("http://localhost:5000/api/users/location", 
+                await axios.put("http://localhost:5000/api/users/location",
                     { lat: pos.coords.latitude, lng: pos.coords.longitude },
                     { headers: { Authorization: `Bearer ${token}` } }
                 );
@@ -103,7 +102,7 @@ export default function DashboardPage() {
     const getCards = () => {
         const storedUser = typeof window !== 'undefined' ? localStorage.getItem("dropsync_user") : null;
         const loggedInUser = storedUser ? JSON.parse(storedUser) : { role: 'customer' };
-        
+
         // Determine which set of cards to show. 
         // If the URL role is supplier, we show supplier stats, even if an admin is viewing it.
         const viewAsRole = urlRole || loggedInUser.role;
@@ -135,7 +134,7 @@ export default function DashboardPage() {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3 capitalize">
-                        <LayoutDashboard className="w-8 h-8 text-blue-500" /> 
+                        <LayoutDashboard className="w-8 h-8 text-blue-500" />
                         {urlRole ? `${urlRole} Dashboard` : "Platform Overview"}
                         {typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' && urlRole === 'supplier' && (
                             <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-1 rounded-md border border-amber-500/20 ml-2">Read-Only View</span>
@@ -145,7 +144,7 @@ export default function DashboardPage() {
                 </div>
                 {/* Hide action buttons if admin is viewing supplier dashboard */}
                 {!(typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' && urlRole === 'supplier') && (
-                    <button 
+                    <button
                         onClick={updateLocation}
                         disabled={isUpdatingLocation}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 transition-all font-bold text-sm"
@@ -212,7 +211,7 @@ export default function DashboardPage() {
                         </div>
                     )}
                 </div>
-                
+
                 <div className="glass rounded-2xl border border-slate-700/50 p-6 flex flex-col">
                     <h3 className="text-lg font-bold text-white mb-6">Recent Order Activity</h3>
                     {recentOrders.length === 0 ? (
@@ -222,14 +221,13 @@ export default function DashboardPage() {
                             {recentOrders.map((order) => (
                                 <li key={order._id} className="flex gap-4 border-b border-slate-800/50 pb-4 last:border-0 last:pb-0 group">
                                     <div className="flex-shrink-0 mt-1">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${
-                                            order.status === "Delivered" ? "bg-green-500/20 text-green-400 border border-green-500/20" : 
-                                            order.status === "Cancelled" || order.returnRequest?.isRequested ? "bg-red-500/20 text-red-400 border border-red-500/20" : 
-                                            "bg-blue-500/20 text-blue-400 border border-blue-500/20"
-                                        }`}>
-                                            {order.status === "Delivered" ? <PackageCheck className="w-4 h-4" /> : 
-                                            order.returnRequest?.isRequested ? <Repeat className="w-4 h-4" /> : 
-                                            <ShoppingBag className="w-4 h-4" />}
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-lg ${order.status === "Delivered" ? "bg-green-500/20 text-green-400 border border-green-500/20" :
+                                            order.status === "Cancelled" || order.returnRequest?.isRequested ? "bg-red-500/20 text-red-400 border border-red-500/20" :
+                                                "bg-blue-500/20 text-blue-400 border border-blue-500/20"
+                                            }`}>
+                                            {order.status === "Delivered" ? <PackageCheck className="w-4 h-4" /> :
+                                                order.returnRequest?.isRequested ? <Repeat className="w-4 h-4" /> :
+                                                    <ShoppingBag className="w-4 h-4" />}
                                         </div>
                                     </div>
                                     <div className="flex-1">

@@ -19,6 +19,8 @@ export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [isVisible, setIsVisible] = useState(true);
+    const lastScrollY = useRef(0);
     const [token, setToken] = useState(null);
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState([]);
@@ -34,11 +36,21 @@ export default function Navbar() {
         setToken(localStorage.getItem("dropsync_token"));
 
         const handleScroll = () => {
-            if (window.scrollY > 20) {
+            const currentScrollY = window.scrollY;
+
+            if (currentScrollY > 20) {
                 setIsScrolled(true);
             } else {
                 setIsScrolled(false);
             }
+
+            if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+                setIsVisible(false);
+            } else {
+                setIsVisible(true);
+            }
+
+            lastScrollY.current = currentScrollY;
         };
 
         window.addEventListener("scroll", handleScroll);
@@ -46,6 +58,11 @@ export default function Navbar() {
             window.removeEventListener("scroll", handleScroll);
         };
     }, []);
+
+    useEffect(() => {
+        setToken(localStorage.getItem("dropsync_token"));
+    }, [pathname]);
+
 
     useEffect(() => {
         const handleClickOutside = (event) => {
@@ -79,7 +96,7 @@ export default function Navbar() {
             try {
                 const response = await fetch(`${API_BASE_URL}/products`);
                 const products = await response.json();
-                
+
                 const filtered = products.filter((product) =>
                     product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                     product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -112,11 +129,28 @@ export default function Navbar() {
         }
     };
 
+    let suppliersLinkName = "Suppliers";
+    if (mounted) {
+        const ustr = localStorage.getItem("dropsync_user");
+        if (ustr) {
+            try {
+                const pUser = JSON.parse(ustr);
+                if (pUser.role === 'supplier') {
+                    suppliersLinkName = pUser.name;
+
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    }
+
     const navLinks = [
         { name: "Home", path: "/" },
         { name: "Products", path: "/products" },
-        { name: "Suppliers", path: "/suppliers" },
+        { name: suppliersLinkName, path: "/suppliers" },
     ];
+
 
     const renderAuthLinks = () => {
         if (token) {
@@ -130,13 +164,12 @@ export default function Navbar() {
                     }
                 }
             }
-
             return (
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
                     <Link href={dashLink} onClick={() => setIsOpen(false)} className="text-slate-300 hover:text-blue-400 transition-colors text-sm font-medium flex items-center gap-2">
                         <User className="w-4 h-4" /> Dashboard
                     </Link>
-                    <button 
+                    <button
                         onClick={() => {
                             localStorage.removeItem("dropsync_token");
                             setToken(null);
@@ -163,17 +196,17 @@ export default function Navbar() {
     };
 
     return (
-        <header 
-            className={`sticky top-0 left-0 right-0 z-50 transition-all duration-300 ${
-                isScrolled ? "bg-slate-900/90 backdrop-blur-md border-b border-white/10 shadow-xl" : "bg-slate-950 py-4"
-            }`}
+        <header
+            className={`sticky top-0 left-0 right-0 z-50 transition-all duration-500 transform ${isVisible ? "translate-y-0" : "-translate-y-full"} ${isScrolled ? "bg-slate-900/90 backdrop-blur-md border-b border-white/10 shadow-xl py-3" : "bg-slate-950 border-b border-transparent py-3"
+                }`}
         >
-            <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                
+            <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between relative">
+
+
                 <div className="flex items-center gap-4">
                     {/* Left Menu Button (Categories/Search) - Hidden on mobile when logged in */}
                     <div className={`relative ${token ? 'hidden md:block' : 'block'}`} ref={menuRef}>
-                        <button 
+                        <button
                             className="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                         >
@@ -245,11 +278,12 @@ export default function Navbar() {
                 <nav className="hidden md:flex items-center gap-8">
                     <div className="flex items-center gap-6 bg-slate-800/50 backdrop-blur-md rounded-full px-6 py-2 border border-white/5">
                         {navLinks.map((link) => (
-                            <Link 
-                                key={link.path} 
+                            <Link
+                                key={link.path}
                                 href={link.path}
-                                className={`text-sm font-medium transition-all relative ${pathname === link.path ? "text-white" : "text-slate-400 hover:text-white"}`}
+                                className={`text-sm font-medium transition-all relative cursor-pointer ${pathname === link.path ? "text-white" : "text-slate-400 hover:text-white"}`}
                             >
+
                                 {link.name}
                                 {pathname === link.path && (
                                     <motion.div layoutId="navbar-indicator" className="absolute -bottom-2 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
@@ -281,7 +315,7 @@ export default function Navbar() {
                 </div>
 
                 {/* Mobile Menu Button (Hamburger) */}
-                <button 
+                <button
                     className="md:hidden text-slate-300 hover:text-white p-2"
                     onClick={() => {
                         setIsOpen(!isOpen);
@@ -290,7 +324,14 @@ export default function Navbar() {
                 >
                     {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                 </button>
+                {/* Mobile Center Logo */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden flex items-center gap-1 z-10">
+                    <Link href="/" className="text-base font-black text-white tracking-tight">
+                        Vastra<span className="text-blue-400"> Culture</span>
+                    </Link>
+                </div>
             </div>
+
 
             <AnimatePresence>
                 {isOpen && (
@@ -303,7 +344,8 @@ export default function Navbar() {
                     >
                         <div className="flex flex-col p-6 gap-4">
                             {navLinks.map((link) => (
-                                <Link key={link.path} href={link.path} onClick={() => setIsOpen(false)} className={`text-base font-medium p-3 rounded-xl ${pathname === link.path ? "bg-blue-600/10 text-blue-400" : "text-slate-300 hover:bg-slate-800"}`}>
+                                <Link key={link.path} href={link.path} onClick={() => setIsOpen(false)} className={`text-base font-medium p-3 rounded-xl cursor-pointer ${pathname === link.path ? "bg-blue-600/10 text-blue-400" : "text-slate-300 hover:bg-slate-800"}`}>
+
                                     {link.name}
                                 </Link>
                             ))}

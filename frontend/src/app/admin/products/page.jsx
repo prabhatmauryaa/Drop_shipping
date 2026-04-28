@@ -121,95 +121,10 @@ export default function ProductsPage() {
  </h1>
  <p className="text-slate-400 mt-1">Add, update or remove items from the marketplace.</p>
  </div>
- <button 
- onClick={() => { setIsAdding(true); setEditingProduct(null); }}
- className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-3 rounded-xl flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20"
- >
- <Plus className="w-5 h-5" /> Add New Product
- </button>
+
  </div>
 
- {isAdding && (
- <div className="glass p-8 rounded-3xl border border-blue-500/30 mb-8 w-full max-w-4xl mx-auto transform transition-all shadow-2xl shadow-blue-500/10">
- <h2 className="text-xl font-bold text-white mb-4 border-b border-slate-800 pb-3">{editingProduct ? "Edit Product Listing" : "Create New Listing"}</h2>
- 
- <Formik
- initialValues={{ 
- title: editingProduct?.title || "", 
- description: editingProduct?.description || "", 
- price: editingProduct?.price || "", 
- stock: editingProduct?.stock || "", 
- category: editingProduct?.category || "", 
- imageUrl: editingProduct?.imageUrl || "" 
- }}
- validationSchema={ProductSchema}
- onSubmit={handleCreateOrUpdateProduct}
- enableReinitialize
- >
- {({ isSubmitting }) => (
- <Form className="grid grid-cols-1 md:grid-cols-2 gap-6">
- <div className="md:col-span-2">
- <label className="block text-sm font-medium text-slate-300 mb-2">Product Title <span className="text-red-500">*</span></label>
- <div className="relative">
- <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><Tag className="w-5 h-5" /></div>
- <Field name="title" type="text" className="input-base pl-10" placeholder="e.g. Premium Wireless Headphones" />
- </div>
- <ErrorMessage name="title" component="p" className="text-error text-xs mt-1" />
- </div>
 
- <div className="md:col-span-2">
- <label className="block text-sm font-medium text-slate-300 mb-2">Description <span className="text-red-500">*</span></label>
- <Field as="textarea" rows="3" name="description" className="input-base" placeholder="Enter detailed product description..." />
- <ErrorMessage name="description" component="p" className="text-error text-xs mt-1" />
- </div>
-
- <div>
- <label className="block text-sm font-medium text-slate-300 mb-2">Price ($) <span className="text-red-500">*</span></label>
- <div className="relative">
- <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><DollarSign className="w-5 h-5" /></div>
- <Field name="price" type="number" step="0.01" className="input-base pl-10" placeholder=" 99.99" />
- </div>
- <ErrorMessage name="price" component="p" className="text-error text-xs mt-1" />
- </div>
-
- <div>
- <label className="block text-sm font-medium text-slate-300 mb-2">Stock Quantity <span className="text-red-500">*</span></label>
- <div className="relative">
- <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500"><Box className="w-5 h-5" /></div>
- <Field name="stock" type="number" className="input-base pl-10" placeholder=" 500" />
- </div>
- <ErrorMessage name="stock" component="p" className="text-error text-xs mt-1" />
- </div>
-
- <div className="md:col-span-2">
- <label className="block text-sm font-medium text-slate-300 mb-2">Category <span className="text-red-500">*</span></label>
- <Field as="select" name="category" className="input-base bg-slate-800">
- <option value="">Select a category</option>
- <option value="Electronics">Electronics</option>
- <option value="Home & Garden">Home & Garden</option>
- </Field>
- <ErrorMessage name="category" component="p" className="text-error text-xs mt-1" />
- </div>
-
- <div className="md:col-span-2">
- <label className="block text-sm font-medium text-slate-300 mb-2">Image URL <span className="text-red-500">*</span></label>
- <Field type="text" name="imageUrl" className="input-base bg-slate-800" placeholder="https://example.com/image.jpg" />
- <ErrorMessage name="imageUrl" component="p" className="text-error text-xs mt-1" />
- </div>
-
- <div className="md:col-span-2 flex justify-end gap-3 mt-4 border-t border-slate-800 pt-4">
- <button type="button" onClick={() => { setIsAdding(false); setEditingProduct(null); }} className="px-5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
- Cancel
- </button>
- <button type="submit" disabled={isSubmitting} className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold flex items-center gap-2 transition-colors disabled:opacity-50">
- {isSubmitting ? "Processing..." : editingProduct ? "Update Product" : "Save Product"}
- </button>
- </div>
- </Form>
- )}
- </Formik>
- </div>
- )}
 
  {/* Products List Table */}
  <div className="glass rounded-2xl border border-slate-700/50 overflow-hidden">
@@ -226,11 +141,11 @@ export default function ProductsPage() {
  <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
  <tr>
  <th className="px-6 py-4 font-semibold">Product Name</th>
+ <th className="px-6 py-4 font-semibold">Supplier</th>
  <th className="px-6 py-4 font-semibold">Category</th>
- <th className="px-6 py-4 font-semibold">Price</th>
- <th className="px-6 py-4 font-semibold">Stock</th>
- <th className="px-6 py-4 font-semibold">Status</th>
- <th className="px-6 py-4 font-semibold text-right">Actions</th>
+ <th className="px-6 py-4 font-semibold text-right">Price</th>
+ <th className="px-6 py-4 text-center font-semibold">Stock</th>
+ <th className="px-6 py-4 font-semibold text-right">Status</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-slate-800/50">
@@ -252,14 +167,15 @@ export default function ProductsPage() {
  <div className="text-xs text-slate-500 truncate w-48">{product.description}</div>
  </div>
  </td>
+ <td className="px-6 py-4 text-slate-300 font-semibold">{product.supplier?.name || "Vendor Supplier"}</td>
  <td className="px-6 py-4"><span className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-300">{product.category}</span></td>
- <td className="px-6 py-4 font-medium text-green-400">₹{product.price.toFixed(2)}</td>
- <td className="px-6 py-4">
+ <td className="px-6 py-4 font-bold text-green-400 text-right">₹{product.price.toFixed(2)}</td>
+ <td className="px-6 py-4 text-center">
  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${product.stock > 10 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
- {product.stock} in stock
+ {product.stock}
  </span>
  </td>
- <td className="px-6 py-4">
+ <td className="px-6 py-4 text-right">
  <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider ${
  product.status === "approved" || product.status === "active" ? "bg-green-500/20 text-green-400" :
  product.status === "rejected" ? "bg-red-500/20 text-red-400" :
@@ -267,10 +183,6 @@ export default function ProductsPage() {
  }`}>
  {product.status || "pending"}
  </span>
- </td>
- <td className="px-6 py-4 text-right space-x-2">
- <button onClick={() => handleEditClick(product)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"><Edit className="w-4 h-4" /></button>
- <button onClick={() => handleDelete(product._id)} className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors"><Trash2 className="w-4 h-4" /></button>
  </td>
  </tr>
  ))

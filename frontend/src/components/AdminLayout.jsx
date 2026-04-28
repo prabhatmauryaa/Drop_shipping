@@ -39,7 +39,7 @@ export default function AdminLayout({ children }) {
         }
 
         setIsAuthorized(true);
-    }, [router, pathname]);
+    }, [router, pathname, mounted]);
 
     if (!isAuthorized) {
         return (

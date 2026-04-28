@@ -230,7 +230,7 @@ function CartItemCard({ item, onRemove, onQtyChange }) {
  {/* Image */}
  <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-shrink-0">
  {item.imageUrl ? (
- <img src={item.imageUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+ <img src={item.imageUrl} alt={item.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
  ) : (
  <div className="w-full h-full flex items-center justify-center">
  <Package className="w-8 h-8 text-slate-600" />
@@ -244,6 +244,11 @@ function CartItemCard({ item, onRemove, onQtyChange }) {
  <span className="inline-block text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-full px-2 py-0.5 mb-3">
  {item.category}
  </span>
+ {item.size && (
+   <span className="inline-block text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mb-3 ml-2">
+     Size: {item.size}
+   </span>
+ )}
  <div className="flex items-center justify-between flex-wrap gap-3">
  {/* Qty Controls */}
  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
@@ -315,30 +320,44 @@ export default function CartPage() {
  const handleAddressSave = (addr) => {
  setSavedAddress(addr);
  setAddressChanged(true);
- setShowAddressModal(false);
+setShowAddressModal(false);
  localStorage.setItem("dropsync_address_changed", "true");
  localStorage.setItem("dropsync_saved_address", JSON.stringify(addr));
  };
 
- const handleCheckout = () => {
- if (cart.length === 0) { 
- toast.error("Your cart is empty"); 
- return; 
- }
- const token = localStorage.getItem("dropsync_token");
- if (!token) {
- toast.error("Please login to checkout");
- setTimeout(() => router.push("/login"), 1500);
- return;
- }
- // Store cart data for checkout and redirect
- localStorage.setItem("dropsync_checkout_cart", JSON.stringify(cart));
- router.push("/checkout");
- };
+  const handleCheckout = () => {
+    if (cart.length === 0) { 
+      toast.error("Your cart is empty"); 
+      return; 
+    }
+    const token = localStorage.getItem("dropsync_token");
+    if (!token) {
+      toast.error("Please login to checkout");
+      setTimeout(() => router.push("/login"), 1500);
+      return;
+    }
 
- const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
- const shipping = 0;
- const total = subtotal + shipping;
+    const ustr = localStorage.getItem("dropsync_user");
+    if (ustr) {
+      try {
+        const user = JSON.parse(ustr);
+        if (user.role === 'admin' || user.role === 'supplier') {
+          toast.error("Suppliers and Admins are not allowed to place orders.");
+          return;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Store cart data for checkout and redirect
+    localStorage.setItem("dropsync_checkout_cart", JSON.stringify(cart));
+    router.push("/checkout");
+  };
+
+  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
+  const shipping = 0;
+  const total = subtotal + shipping;
 
  if (!mounted) return (
  <div className="min-h-screen flex items-center justify-center">
@@ -526,11 +545,11 @@ export default function CartPage() {
  <div key={item._id} className="flex items-center gap-3 text-sm">
  <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
  {item.imageUrl
- ? <img src={item.imageUrl} className="w-full h-full object-cover" alt={item.title} />
+ ? <img src={item.imageUrl} className="w-full h-full object-contain" alt={item.title} />
  : <Package className="w-4 h-4 m-2 text-slate-600" />}
  </div>
  <span className="flex-1 text-slate-300 line-clamp-1">{item.title}</span>
- <span className="text-white font-semibold flex-shrink-0">×{item.qty}</span>
+ <span className="text-white font-semibold flex-shrink-0">{item.size ? `[${item.size}] ` : ""}×{item.qty}</span>
  </div>
  ))}
  </div>

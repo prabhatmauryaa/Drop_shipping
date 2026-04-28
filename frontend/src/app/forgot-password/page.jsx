@@ -34,11 +34,7 @@ export default function ForgotPasswordPage() {
  setEmail(values.email);
  setStep(2);
  
- if (response.data.otp_demo) {
- toast.success(`[DEV] OTP Code auto-generated: ${response.data.otp_demo}`, { duration: 6000 });
- } else {
  toast.success("Secure OTP code sent to your email!");
- }
  } catch (error) {
  toast.error(error.response?.data?.message || "User profile not found.");
  } finally {

@@ -22,7 +22,19 @@ const ProductSlider = ({
  const router = useRouter();
  const [currentIndex, setCurrentIndex] = useState(0);
  const [itemsPerView, setItemsPerView] = useState(4);
+ const [userRole, setUserRole] = useState(null);
  const sliderRef = useRef(null);
+
+ useEffect(() => {
+    const ustr = localStorage.getItem("dropsync_user");
+    if (ustr) {
+      try {
+        setUserRole(JSON.parse(ustr).role);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }, []);
 
  // Calculate items per view based on screen size
  useEffect(() => {
@@ -151,7 +163,7 @@ const ProductSlider = ({
  <img 
  src={productImg} 
  alt={productName} 
- className="w-full h-full object-cover transition-all duration-700 group-hover/card:scale-105" 
+ className="w-full h-full object-contain transition-all duration-700 group-hover/card:scale-105" 
  />
  
  {/* Badge */}
@@ -172,12 +184,14 @@ const ProductSlider = ({
  </button>
  
  {/* Add to Cart Overlay (slides up on hover) */}
+ {userRole !== 'admin' && userRole !== 'supplier' && (
  <button 
  onClick={(e) => { e.stopPropagation(); handleAddToCart(item); }}
  className="absolute bottom-0 left-0 right-0 translate-y-full group-hover/card:translate-y-0 transition-transform duration-300 bg-white/90 py-2 text-center text-[10px] font-bold uppercase tracking-tighter text-gray-800 cursor-pointer hover:bg-black hover:text-white"
  >
  Add to Cart
  </button>
+ )}
  </div>
  
  {/* Info Container */}
@@ -198,7 +212,7 @@ const ProductSlider = ({
  >
  <Eye size={16} />
  </button>
- {showBadge && (
+ {showBadge && userRole !== 'admin' && userRole !== 'supplier' && (
  <button 
  onClick={() => handleAddToCart(item)}
  className="p-2.5 bg-black text-white hover:bg-gray-800 transition-all"

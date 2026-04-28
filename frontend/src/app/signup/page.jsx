@@ -15,7 +15,7 @@ const SignupSchema = Yup.object().shape({
  name: Yup.string().required("Name is required"),
  email: Yup.string().email("Invalid email").required("Email is required"),
  password: Yup.string().min(6, "Must be at least 6 characters").required("Password is required"),
- phone: Yup.string().required("Phone is required"),
+ phone: Yup.number().min(10,"10-digit allowed only").required("Phone is required"),
  role: Yup.string().oneOf(['customer', 'supplier'], 'Invalid Role').required('Role is required'),
 });
 

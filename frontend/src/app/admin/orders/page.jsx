@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../components/AdminLayout";
+import Link from "next/link";
 import { ShoppingCart, Edit, Eye, Filter, Truck, CheckCircle, PackageCheck, Repeat, ArrowRight } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
@@ -11,6 +12,14 @@ export default function OrdersPage() {
  const [orders, setOrders] = useState([]);
  const [loading, setLoading] = useState(true);
  const [selectedOrder, setSelectedOrder] = useState(null);
+
+ const getImageUrl = (url) => {
+    if (!url) return "https://via.placeholder.com/150?text=No+Image";
+    if (url.startsWith("http")) return url;
+    const baseUrl = "http://localhost:5000";
+    const cleanPath = url.startsWith("/") ? url : `/${url}`;
+    return `${baseUrl}${cleanPath}`;
+  };
 
  const fetchOrders = async () => {
  try {
@@ -107,7 +116,7 @@ export default function OrdersPage() {
  ) : <span className="text-slate-600">None</span>}
  </td>
  <td className="px-6 py-4 text-right">
- <button onClick={() => setSelectedOrder(order)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"><Edit className="w-5 h-5"/></button>
+ <button onClick={() => setSelectedOrder(order)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors" title="View Details"><Eye className="w-5 h-5"/></button>
  </td>
  </tr>
  ))}
@@ -139,19 +148,40 @@ export default function OrdersPage() {
  </div>
 
  <div>
- <label className="text-sm text-slate-400 mb-1 block">Update Order Status</label>
- <select 
- value={selectedOrder.status}
- onChange={(e) => updateStatus(selectedOrder._id, e.target.value)}
- className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+ <label className="text-sm text-slate-400 mb-1 block">Order Status</label>
+ <div className="w-full bg-slate-800/50 border border-slate-700 text-slate-400 rounded-xl px-4 py-3 cursor-not-allowed font-semibold">
+   {selectedOrder.status}
+ </div>
+ </div>
+
+ <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+ <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">Order Items</h3>
+ <div className="space-y-4">
+ {selectedOrder.orderItems?.map((item, idx) => (
+ <div key={idx} className="flex gap-4 p-2 rounded-lg hover:bg-slate-700/30 transition-colors border border-transparent hover:border-slate-700">
+ <div className="relative group flex-shrink-0">
+ <img 
+ src={getImageUrl(item.image || item.img || item.imageUrl)} 
+ alt={item.name} 
+ className="w-16 h-16 object-cover rounded-lg border border-slate-700"
+ onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=No+Image"; }}
+ />
+ </div>
+ <div className="flex-1 min-w-0">
+ <Link 
+ href={`/product/${item.product}`} 
+ className="text-sm font-semibold text-white hover:text-blue-400 truncate block transition-colors"
  >
- <option value="Pending">Pending</option>
- <option value="Forwarded">Forwarded to Supplier</option>
- <option value="Dispatched">Dispatched</option>
- <option value="Out for Delivery">Out for Delivery</option>
- <option value="Delivered">Delivered</option>
- <option value="Cancelled">Cancelled</option>
- </select>
+ {item.name}
+ </Link>
+ <div className="flex justify-between items-center mt-1">
+ <span className="text-xs text-slate-400">Qty: {item.qty}</span>
+ <span className="text-xs font-bold text-green-400">₹{item.price.toFixed(2)}</span>
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
  </div>
 
  <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
@@ -164,9 +194,8 @@ export default function OrdersPage() {
  <div className="border border-red-500/30 rounded-xl p-4 bg-red-900/10">
  <h3 className="text-sm font-bold text-red-400 mb-2">Refund Request </h3>
  <p className="text-xs text-slate-300">Reason: {selectedOrder.returnRequest.reason}</p>
- <div className="flex gap-2 mt-3">
- <button className="flex-1 bg-green-600/20 text-green-400 py-2 rounded-lg text-xs font-bold hover:bg-green-600/40">Approve Refund</button>
- <button className="flex-1 bg-red-600/20 text-red-400 py-2 rounded-lg text-xs font-bold hover:bg-red-600/40">Reject</button>
+ <div className="mt-3 text-center py-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5">
+   <p className="text-xs text-amber-500 font-semibold italic">Awaiting supplier processing...</p>
  </div>
  </div>
  )}

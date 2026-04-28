@@ -82,4 +82,15 @@ router.post("/locations", authMiddleware, async (req, res) => {
     }
 });
 
+// Get all suppliers (Public)
+router.get("/suppliers", async (req, res) => {
+    try {
+        const suppliers = await User.find({ role: "supplier" }).select("name email phone location");
+        res.status(200).json(suppliers);
+    } catch (error) {
+        res.status(500).json({ message: "Server Error", error: error.message });
+    }
+});
+
 module.exports = router;
+

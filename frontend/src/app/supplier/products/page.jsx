@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import AdminLayout from "../../../components/AdminLayout";
 import { Plus, Tag, Box, DollarSign, Edit, Trash2, PackageOpen, Search, X, Upload, Eye } from "lucide-react";
 import { Formik, Form, Field, FieldArray, ErrorMessage } from "formik";
@@ -23,8 +23,7 @@ const ProductSchema = Yup.object().shape({
 });
 
 export default function ProductsPage() {
-  const params = useParams();
-  const urlRole = params.role;
+  const urlRole = 'supplier';
   const [products, setProducts] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
