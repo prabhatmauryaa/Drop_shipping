@@ -10,15 +10,17 @@ export default function Sidebar() {
  const pathname = usePathname();
  const router = useRouter();
  const [user, setUser] = useState(null);
+ const [mounted, setMounted] = useState(false);
 
  useEffect(() => {
+ setMounted(true);
  const storedUser = localStorage.getItem("dropsync_user");
  if (storedUser) {
  setUser(JSON.parse(storedUser));
- } else {
+ } else if (mounted) {
  router.push("/login"); // Secure redirect if not logged in
  }
- }, [router]);
+ }, [router, mounted]);
 
  const handleLogout = () => {
  localStorage.removeItem("dropsync_token");

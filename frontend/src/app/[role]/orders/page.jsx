@@ -2,13 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import AdminLayout from "../../../components/AdminLayout";
-import { ShoppingCart, Edit, Eye, Filter, Truck, CheckCircle, PackageCheck, Repeat, ArrowRight } from "lucide-react";
+import { ShoppingCart, Edit, Eye, Filter, Truck, CheckCircle, PackageCheck, Repeat, ArrowRight, ExternalLink } from "lucide-react";
+import Link from "next/link";
 import toast, { Toaster } from "react-hot-toast";
 import axios from "axios";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, useParams } from "next/navigation";
 
 export default function OrdersPage() {
- const [orders, setOrders] = useState([]);
+  const router = useRouter();
+  const params = useParams();
+  const urlRole = params.role;
+  const [orders, setOrders] = useState([]);
  const [loading, setLoading] = useState(true);
  const [selectedOrder, setSelectedOrder] = useState(null);
  const [returnLoading, setReturnLoading] = useState(false);
@@ -28,6 +33,14 @@ export default function OrdersPage() {
  };
 
  useEffect(() => { fetchOrders(); }, []);
+
+ const getImageUrl = (url) => {
+   if (!url) return "https://via.placeholder.com/150?text=No+Image";
+   if (url.startsWith("http")) return url;
+   const baseUrl = "http://localhost:5000";
+   const cleanPath = url.startsWith("/") ? url : `/${url}`;
+   return `${baseUrl}${cleanPath}`;
+ };
 
  const updateStatus = async (id, newStatus) => {
  try {
@@ -82,6 +95,9 @@ export default function OrdersPage() {
  <div>
  <h1 className="text-3xl font-bold text-white flex items-center gap-3">
  <ShoppingCart className="w-8 h-8 text-green-500" /> Order Management
+ {typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' && (
+   <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-1 rounded-md border border-amber-500/20 ml-2">Read-Only View</span>
+ )}
  </h1>
  <p className="text-slate-400 mt-1">Track placements, forward to suppliers, manage returns.</p>
  </div>
@@ -129,7 +145,13 @@ export default function OrdersPage() {
  ) : <span className="text-slate-600">None</span>}
  </td>
  <td className="px-6 py-4 text-right">
- <button onClick={() => setSelectedOrder(order)} className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"><Edit className="w-5 h-5"/></button>
+ <button 
+  onClick={() => setSelectedOrder(order)} 
+  className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
+  title={typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' ? "View Details" : "Edit Order"}
+  >
+    {typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' ? <Eye className="w-5 h-5"/> : <Edit className="w-5 h-5"/>}
+  </button>
  </td>
  </tr>
  ))}
@@ -161,11 +183,12 @@ export default function OrdersPage() {
  </div>
 
  <div>
- <label className="text-sm text-slate-400 mb-1 block">Update Order Status</label>
+ <label className="text-sm text-slate-400 mb-1 block">Order Status</label>
  <select 
  value={selectedOrder.status}
  onChange={(e) => updateStatus(selectedOrder._id, e.target.value)}
- className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-blue-500"
+ disabled={typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin'}
+ className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl px-4 py-3 outline-none focus:border-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
  >
  <option value="Pending">Pending</option>
  <option value="Forwarded">Forwarded to Supplier</option>
@@ -174,6 +197,42 @@ export default function OrdersPage() {
  <option value="Delivered">Delivered</option>
  <option value="Cancelled">Cancelled</option>
  </select>
+ </div>
+
+ <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+ <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">Order Items</h3>
+ <div className="space-y-4">
+ {selectedOrder.orderItems?.map((item, idx) => (
+ <div key={idx} className="flex gap-4 p-2 rounded-lg hover:bg-slate-700/30 transition-colors border border-transparent hover:border-slate-700">
+ <div 
+ className="relative group cursor-pointer" 
+ onClick={() => router.push(`/product/${item.product}`)}
+ >
+ <img 
+ src={getImageUrl(item.image || item.img || item.imageUrl)} 
+ alt={item.name} 
+ className="w-16 h-16 object-cover rounded-lg border border-slate-700 group-hover:opacity-80 transition-opacity"
+ onError={(e) => { e.target.src = "https://via.placeholder.com/150?text=No+Image"; }}
+ />
+ <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+ <Eye className="w-5 h-5 text-white drop-shadow-lg" />
+ </div>
+ </div>
+ <div className="flex-1 min-w-0">
+ <Link 
+ href={`/product/${item.product}`} 
+ className="text-sm font-semibold text-white hover:text-blue-400 truncate block transition-colors"
+ >
+ {item.name}
+ </Link>
+ <div className="flex justify-between items-center mt-1">
+ <span className="text-xs text-slate-400">Qty: {item.qty}</span>
+ <span className="text-xs font-bold text-green-400">₹{item.price.toFixed(2)}</span>
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
  </div>
 
  <div className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
@@ -205,8 +264,9 @@ export default function OrdersPage() {
  </p>
  </div>
 
- {/* Only show buttons if still Pending */}
+ {/* Only show buttons if still Pending and NOT an admin */}
  {selectedOrder.returnRequest.status === "Pending" ? (
+ !(typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin') ? (
  <div className="flex gap-2 mt-3">
  <button
  onClick={() => handleReturnAction(selectedOrder._id, "Approved")}
@@ -233,6 +293,11 @@ export default function OrdersPage() {
  Reject
  </button>
  </div>
+ ) : (
+    <div className="mt-3 text-center py-2.5 rounded-xl border border-amber-500/20 bg-amber-500/5">
+      <p className="text-xs text-amber-500 font-semibold italic">Awaiting action from supplier/admin...</p>
+    </div>
+  )
  ) : (
  // Already actioned — show locked message
  <div className="mt-3 text-center py-2.5 rounded-xl border border-slate-700 bg-slate-800/40">

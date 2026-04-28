@@ -5,11 +5,14 @@ import AdminLayout from "../../../components/AdminLayout";
 import { motion } from "framer-motion";
 import { Users, PackageOpen, LayoutDashboard, ShoppingBag, ArrowUpRight, ArrowDownRight, DollarSign, Repeat, PackageCheck, Star, ShieldCheck, Plus, Trash2, Edit, Clock, CheckCircle, Info, MapPin } from "lucide-react";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 
 export default function DashboardPage() {
     const router = useRouter();
+    const params = useParams();
+    const urlRole = params.role; // The role from the URL path: /admin/dashboard or /supplier/dashboard
+    
     const [stats, setStats] = useState({
         totalUsers: 0,
         totalProducts: 0,
@@ -99,9 +102,13 @@ export default function DashboardPage() {
 
     const getCards = () => {
         const storedUser = typeof window !== 'undefined' ? localStorage.getItem("dropsync_user") : null;
-        const userRole = storedUser ? JSON.parse(storedUser).role : 'customer';
+        const loggedInUser = storedUser ? JSON.parse(storedUser) : { role: 'customer' };
+        
+        // Determine which set of cards to show. 
+        // If the URL role is supplier, we show supplier stats, even if an admin is viewing it.
+        const viewAsRole = urlRole || loggedInUser.role;
 
-        if (userRole === 'admin') {
+        if (viewAsRole === 'admin') {
             return [
                 { title: "Total Users", value: stats.totalUsers, icon: <Users className="w-6 h-6 text-blue-500" />, trend: "+12%", up: true, href: "/admin/users" },
                 { title: "Active Products", value: stats.totalProducts, icon: <PackageOpen className="w-6 h-6 text-purple-500" />, trend: "+5%", up: true, href: "/admin/products" },
@@ -110,9 +117,9 @@ export default function DashboardPage() {
             ];
         } else {
             return [
-                { title: "My Products", value: stats.totalProducts, icon: <PackageOpen className="w-6 h-6 text-indigo-500" />, trend: "Active", up: true, href: "/supplier/products" },
+                { title: "My Products", value: stats.totalProducts, icon: <PackageOpen className="w-6 h-6 text-indigo-500" />, trend: "Active", up: true, href: loggedInUser.role === 'admin' ? null : "/supplier/products" },
                 { title: "My Sales", value: `₹${stats.totalSales.toFixed(2)}`, icon: <DollarSign className="w-6 h-6 text-emerald-500" />, trend: "Income", up: true },
-                { title: "Active Orders", value: stats.activeOrders, icon: <ShoppingBag className="w-6 h-6 text-orange-500" />, trend: "To Ship", up: false, href: "/supplier/orders" },
+                { title: "Active Orders", value: stats.activeOrders, icon: <ShoppingBag className="w-6 h-6 text-orange-500" />, trend: "To Ship", up: false, href: loggedInUser.role === 'admin' ? null : "/supplier/orders" },
                 { title: "Pending Items", value: stats.pendingApprovals, icon: <Repeat className="w-6 h-6 text-amber-500" />, trend: "Wait Admin", up: false },
             ];
         }
@@ -129,18 +136,24 @@ export default function DashboardPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-white mb-2 flex items-center gap-3 capitalize">
                         <LayoutDashboard className="w-8 h-8 text-blue-500" /> 
-                        {typeof window !== 'undefined' && localStorage.getItem('dropsync_user') ? `${JSON.parse(localStorage.getItem('dropsync_user')).role} Dashboard` : "Platform Overview"}
+                        {urlRole ? `${urlRole} Dashboard` : "Platform Overview"}
+                        {typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' && urlRole === 'supplier' && (
+                            <span className="text-xs bg-amber-500/10 text-amber-500 px-2 py-1 rounded-md border border-amber-500/20 ml-2">Read-Only View</span>
+                        )}
                     </h1>
                     <p className="text-slate-400">Welcome to your Vastra culture centralized command center.</p>
                 </div>
-                <button 
-                    onClick={updateLocation}
-                    disabled={isUpdatingLocation}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 transition-all font-bold text-sm"
-                >
-                    <MapPin className={`w-4 h-4 ${isUpdatingLocation ? 'animate-pulse' : ''}`} />
-                    {isUpdatingLocation ? "Saving Location..." : "Update Warehouse Location"}
-                </button>
+                {/* Hide action buttons if admin is viewing supplier dashboard */}
+                {!(typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin' && urlRole === 'supplier') && (
+                    <button 
+                        onClick={updateLocation}
+                        disabled={isUpdatingLocation}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-xl hover:bg-blue-500/20 transition-all font-bold text-sm"
+                    >
+                        <MapPin className={`w-4 h-4 ${isUpdatingLocation ? 'animate-pulse' : ''}`} />
+                        {isUpdatingLocation ? "Saving Location..." : "Update Warehouse Location"}
+                    </button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
@@ -234,11 +247,14 @@ export default function DashboardPage() {
             </div>
 
             {/* Supplier Section */}
-            {typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'supplier' && (
+            {(urlRole === 'supplier' || (typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'supplier')) && (
                 <div className="mt-10">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-2xl font-bold text-white flex items-center gap-3"><PackageOpen className="w-7 h-7 text-purple-500" /> My Products</h2>
-                        <button onClick={() => router.push("/supplier/products")} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-all"><Plus className="w-5 h-5" /> Add Product</button>
+                        {/* Hide Add Product if admin is viewing */}
+                        {!(typeof window !== 'undefined' && localStorage.getItem('dropsync_user') && JSON.parse(localStorage.getItem('dropsync_user')).role === 'admin') && (
+                            <button onClick={() => router.push("/supplier/products")} className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-4 py-2 rounded-lg flex items-center gap-2 transition-all"><Plus className="w-5 h-5" /> Add Product</button>
+                        )}
                     </div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div className="glass rounded-2xl border border-slate-700/50 p-6">
