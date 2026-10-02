@@ -35,7 +35,7 @@ app.get("/", (req, res) => {
 });
 
 // Database Connection
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
 const dns = require("node:dns/promises");

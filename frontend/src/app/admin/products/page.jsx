@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import AdminLayout from "../../../components/AdminLayout";
 import { Plus, Tag, Box, DollarSign, Edit, Trash2, PackageOpen, Search } from "lucide-react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
@@ -18,7 +18,7 @@ const ProductSchema = Yup.object().shape({
  imageUrl: Yup.string().url("Must be a valid URL").required("Image URL is required"),
 });
 
-export default function ProductsPage() {
+function AdminProductsContent() {
  const searchParams = useSearchParams();
  const filterSupplier = searchParams.get("supplier");
  
@@ -193,4 +193,12 @@ export default function ProductsPage() {
  </div>
  </AdminLayout>
  );
+}
+
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-slate-400">Loading admin products...</div>}>
+      <AdminProductsContent />
+    </Suspense>
+  );
 }

@@ -27,17 +27,17 @@ const productSchema = new mongoose.Schema(
     },
     images: {
       type: [String],
-      required: [true, "At least one image is required"],
+      default: [],
       validate: {
         validator: function(v) {
-          return v && v.length <= 5;
+          return !v || v.length <= 10;
         },
-        message: "A product can have a maximum of 5 images."
+        message: "A product can have a maximum of 10 images."
       }
     },
     imageUrl: {
       type: String,
-      required: false,
+      default: "",
     },
     sizes: {
       type: [String],
@@ -66,16 +66,22 @@ const productSchema = new mongoose.Schema(
 
 // Pre-save hook to sync imageUrl with the first element of images array
 productSchema.pre("save", function() {
-  if (this.images && this.images.length > 0) {
+  if (this.images && this.images.length > 0 && !this.imageUrl) {
     this.imageUrl = this.images[0];
+  } else if ((!this.images || this.images.length === 0) && this.imageUrl) {
+    this.images = [this.imageUrl];
   }
 });
 
 // Pre-findOneAndUpdate hook to sync imageUrl
 productSchema.pre("findOneAndUpdate", function() {
   const update = this.getUpdate();
-  if (update && update.images && update.images.length > 0) {
-    update.imageUrl = update.images[0];
+  if (update) {
+    if (update.images && update.images.length > 0 && !update.imageUrl) {
+      update.imageUrl = update.images[0];
+    } else if ((!update.images || update.images.length === 0) && update.imageUrl) {
+      update.images = [update.imageUrl];
+    }
   }
 });
 

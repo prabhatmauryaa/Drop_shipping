@@ -32,28 +32,39 @@ router.get("/dashboard", authMiddleware, authorizeRoles("admin", "seller", "supp
 // Create Product (Supplier, Admin)
 router.post("/", authMiddleware, authorizeRoles("admin", "supplier"), async (req, res) => {
   try {
-    const { title, description, price, stock, category, images, supplier, sizes } = req.body;
+    let { title, description, price, stock, category, images, imageUrl, supplier, sizes, status } = req.body;
 
-    if (!title || !description || !price || !stock || !category || !images || images.length === 0) {
-      return res.status(400).json({ message: "Required fields missing (including at least one image)" });
+    if (!images || images.length === 0) {
+      if (imageUrl) images = [imageUrl];
+      else images = [];
     }
+    if (!imageUrl && images.length > 0) {
+      imageUrl = images[0];
+    }
+
+    if (!title || !description || price === undefined || stock === undefined || !category || images.length === 0) {
+      return res.status(400).json({ message: "Required fields missing (including title, description, price, stock, category, and an image)" });
+    }
+
+    const initialStatus = status || (req.user.role === "admin" ? "approved" : "pending");
 
     const newProduct = new Product({
       title,
       description,
-      price,
-      stock,
+      price: Number(price),
+      stock: Number(stock),
       category,
       images,
-      supplier: supplier || req.user.id, // default to self if not specified (for suppliers)
+      imageUrl,
+      supplier: supplier || req.user.id,
       sizes: sizes || [],
+      status: initialStatus
     });
 
     await newProduct.save();
     res.status(201).json({ message: "Product created successfully", product: newProduct });
   } catch (error) {
     console.log(error);
-  
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
@@ -61,24 +72,21 @@ router.post("/", authMiddleware, authorizeRoles("admin", "supplier"), async (req
 // Update Product
 router.put("/:id", authMiddleware, authorizeRoles("admin", "seller", "supplier"), async (req, res) => {
   try {
-    // Find if product exists
     const product = await Product.findById(req.params.id);
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Admin can update any product
-    if (req.user.role === "admin") {
-      const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      return res.status(200).json({ message: "Product updated successfully", product: updatedProduct });
-    }
-
-    // Non-admin users can only update their own products
-    if (product.supplier.toString() !== req.user.id.toString()) {
+    if (req.user.role !== "admin" && (!product.supplier || product.supplier.toString() !== req.user.id.toString())) {
       return res.status(403).json({ message: "Not authorized to update this product" });
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const updateData = { ...req.body };
+    if (updateData.imageUrl && (!updateData.images || updateData.images.length === 0)) {
+      updateData.images = [updateData.imageUrl];
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
     res.status(200).json({ message: "Product updated successfully", product: updatedProduct });
   } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
@@ -93,14 +101,7 @@ router.delete("/:id", authMiddleware, authorizeRoles("admin", "seller", "supplie
       return res.status(404).json({ message: "Product not found" });
     }
 
-    // Admin can delete any product
-    if (req.user.role === "admin") {
-      await Product.findByIdAndDelete(req.params.id);
-      return res.status(200).json({ message: "Product deleted successfully" });
-    }
-
-    // Non-admin users can only delete their own products
-    if (product.supplier.toString() !== req.user.id.toString()) {
+    if (req.user.role !== "admin" && (!product.supplier || product.supplier.toString() !== req.user.id.toString())) {
       return res.status(403).json({ message: "Not authorized to delete this product" });
     }
 

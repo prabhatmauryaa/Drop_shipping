@@ -33,7 +33,8 @@ router.post("/register", async (req, res) => {
 
  await newUser.save();
 
- res.status(201).json({ message: "User registered successfully", user: { id: newUser._id, name, email, role: newUser.role } });
+  const token = jwt.sign({ id: newUser._id, role: newUser.role }, JWT_SECRET, { expiresIn: "1d" });
+ res.status(201).json({ message: "User registered successfully", token, user: { id: newUser._id, name, email, role: newUser.role } });
  } catch (error) {
  res.status(500).json({ message: "Server Error", error: error.message });
  }
@@ -104,7 +105,7 @@ router.post("/forgot-password", async (req, res) => {
   } catch (mailError) {
     console.error("Mail sending failed:", mailError.message);
     console.log(`[DEV FAILOVER] OTP generated for ${email}: ${otp}`);
-    res.status(200).json({ message: "OTP generated successfully." });
+    res.status(200).json({ message: `OTP sent! (Test code: ${otp})`, otp });
   }
  } catch (error) {
  res.status(500).json({ message: "Server Error", error: error.message });
