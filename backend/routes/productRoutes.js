@@ -4,14 +4,53 @@ const { authMiddleware, authorizeRoles } = require("../middleware/authMiddleware
 
 const router = express.Router();
 
+// Helper to ensure image URLs point to the active backend domain
+const normalizeProduct = (p, req) => {
+  if (!p) return p;
+  const obj = p.toObject ? p.toObject() : { ...p };
+  const host = `${req.protocol}://${req.get("host")}`;
+
+  if (obj.imageUrl) {
+    if (obj.imageUrl.includes("localhost:5000")) {
+      obj.imageUrl = obj.imageUrl.replace(/http:\/\/localhost:5000/g, host);
+    } else if (obj.imageUrl.startsWith("/uploads")) {
+      obj.imageUrl = `${host}${obj.imageUrl}`;
+    }
+  }
+
+  if (Array.isArray(obj.images)) {
+    obj.images = obj.images.map(img => {
+      if (typeof img !== "string") return img;
+      if (img.includes("localhost:5000")) {
+        return img.replace(/http:\/\/localhost:5000/g, host);
+      } else if (img.startsWith("/uploads")) {
+        return `${host}${img}`;
+      }
+      return img;
+    });
+  }
+
+  return obj;
+};
+
 // Get All Approved/Active Products (Public)
 router.get("/", async (req, res) => {
   try {
     const products = await Product.find({ status: { $in: ["approved", "active"] } }).populate("supplier", "name email").populate("seller", "name email");
-    res.status(200).json(products);
+    res.status(200).json(products.map(p => normalizeProduct(p, req)));
   } catch (error) {
     console.log(error);
+    res.status(500).json({ message: "Server Error", error: error.message });
+  }
+});
 
+// Get Single Product by ID (Public)
+router.get("/single/:id", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).populate("supplier", "name email");
+    if (!product) return res.status(404).json({ message: "Product not found" });
+    res.status(200).json(normalizeProduct(product, req));
+  } catch (error) {
     res.status(500).json({ message: "Server Error", error: error.message });
   }
 });
@@ -23,7 +62,7 @@ router.get("/dashboard", authMiddleware, authorizeRoles("admin", "seller", "supp
     if (req.user.role === "supplier") filter = { supplier: req.user.id };
 
     const products = await Product.find(filter);
-    res.status(200).json(products);
+    res.status(200).json(products.map(p => normalizeProduct(p, req)));
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }
@@ -116,7 +155,7 @@ router.delete("/:id", authMiddleware, authorizeRoles("admin", "seller", "supplie
 router.get("/admin/pending", authMiddleware, authorizeRoles("admin", "seller"), async (req, res) => {
   try {
     const products = await Product.find({ status: "pending" }).populate("supplier", "name email");
-    res.status(200).json(products);
+    res.status(200).json(products.map(p => normalizeProduct(p, req)));
   } catch (error) {
     res.status(500).json({ message: "Server Error" });
   }

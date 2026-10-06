@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import ProductSlider from './ProductSlider';
-import axios from 'axios';
+import api from '@/lib/api';
 
 const MensSection = () => {
  const [products, setProducts] = useState([]);
@@ -21,7 +21,7 @@ const MensSection = () => {
  useEffect(() => {
  const fetchMensProducts = async () => {
  try {
- const res = await axios.get('http://localhost:5000/api/products');
+ const res = await api.get('/products');
  if (res.data && res.data.length > 0) {
  const mens = res.data.filter(p => p.category === 'Men');
  if (mens.length > 0) {

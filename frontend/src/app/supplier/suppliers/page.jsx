@@ -1,111 +1,131 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import AdminLayout from "../../../components/AdminLayout";
 import { Users, Search, Star, MessageSquare, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
-import axios from "axios";
+import api, { getErrorMessage } from "@/lib/api";
 
-export default function SuppliersPage() {
-    const router = useRouter();
-    const [suppliers, setSuppliers] = useState([]);
-    const [loading, setLoading] = useState(true);
+export default function SupplierNetworkPage() {
+  const router = useRouter();
+  const [suppliers, setSuppliers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchSuppliers = async () => {
-            try {
-                const token = localStorage.getItem("dropsync_token");
-                const res = await axios.get("http://localhost:5000/api/users/all", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                // Filter only suppliers for setSuppliers(res.data.filter(u => u.role === "supplier"));
-            } catch (error) {
-                console.log(error);
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const res = await api.get("/users/all");
+        setSuppliers((res.data || []).filter((u) => u.role === "supplier"));
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSuppliers();
+  }, []);
 
-                toast.error("Failed to load suppliers");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchSuppliers();
-    }, []);
-
-    return (
-        <AdminLayout>
-            <Toaster position="top-right" />
-            <div className="mb-8">
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                    <Users className="w-8 h-8 text-blue-500" /> Supplier Management
-                </h1>
-                <p className="text-slate-400 mt-1">Manage supplier profiles, ratings, and performance.</p>
-            </div>
-
-            <div className="glass rounded-2xl border border-slate-700/50 overflow-hidden">
-                <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-800/30">
-                    <h2 className="font-bold text-white text-lg">Active Suppliers</h2>
-                    <div className="relative w-64">
-                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                        <input type="text" placeholder="Search suppliers..." className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-blue-500 focus:outline-none" />
-                    </div>
-                </div>
-
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm whitespace-nowrap">
-                        <thead className="bg-slate-900/50 text-slate-400 uppercase text-xs">
-                            <tr>
-                                <th className="px-6 py-4 font-semibold">Supplier Name</th>
-                                <th className="px-6 py-4 font-semibold">Contact Email</th>
-                                <th className="px-6 py-4 font-semibold">Products Synced</th>
-                                <th className="px-6 py-4 font-semibold">Performance Rating</th>
-                                <th className="px-6 py-4 font-semibold text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800/50">
-                            {loading ? (
-                                <tr><td colSpan="5" className="px-6 py-10 text-center text-slate-500">Loading suppliers...</td></tr>
-                            ) : suppliers.length === 0 ? (
-                                <tr><td colSpan="5" className="px-6 py-10 text-center text-slate-500">No active suppliers found.</td></tr>
-                            ) : (
-                                suppliers.map(sup => (
-                                    <tr key={sup._id} className="hover:bg-slate-800/30 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-white">{sup.name}</div>
-                                            <div className="text-xs text-green-400 font-medium tracking-wide">Verified</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-300">{sup.email}</td>
-                                        <td className="px-6 py-4">
-                                            <span className="px-2.5 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs font-semibold text-slate-300">
-                                                Avg. 14 items
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-1 text-yellow-400">
-                                                <Star className="w-4 h-4 fill-yellow-400" />
-                                                <Star className="w-4 h-4 fill-yellow-400" />
-                                                <Star className="w-4 h-4 fill-yellow-400" />
-                                                <Star className="w-4 h-4 fill-yellow-400" />
-                                                <Star className="w-4 h-4 text-slate-700" />
-                                                <span className="text-slate-400 ml-2 text-xs">(4.2)</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right space-x-2">
-                                            <button
-                                                onClick={() => router.push(`/supplier/dashboard`)}
-                                                className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"
-                                                title="View Supplier Dashboard"
-                                            >
-                                                <Eye className="w-4 h-4" />
-                                            </button>
-                                            <button className="p-2 text-slate-400 hover:text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors"><MessageSquare className="w-4 h-4" /></button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </AdminLayout>
+  const filteredSuppliers = useMemo(() => {
+    if (!searchQuery.trim()) return suppliers;
+    const q = searchQuery.toLowerCase();
+    return suppliers.filter((s) =>
+      s.name?.toLowerCase().includes(q) ||
+      s.email?.toLowerCase().includes(q)
     );
+  }, [suppliers, searchQuery]);
+
+  return (
+    <AdminLayout>
+      <Toaster position="top-right" />
+      <div className="mb-8">
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+          <div className="p-2.5 bg-blue-50 rounded-2xl border border-blue-100 text-blue-600">
+            <Users className="w-7 h-7" />
+          </div>
+          Supplier Network
+        </h1>
+        <p className="text-slate-500 mt-1 text-sm">Discover and connect with peer merchants across the ecosystem.</p>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-slate-50/50">
+          <div>
+            <h2 className="font-bold text-slate-900 text-base">Active Suppliers</h2>
+            <p className="text-xs text-slate-500">Showing {filteredSuppliers.length} partners</p>
+          </div>
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search suppliers..."
+              className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100 transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-3.5 font-bold">Supplier Name</th>
+                <th className="px-6 py-3.5 font-bold">Contact Email</th>
+                <th className="px-6 py-3.5 font-bold">Rating</th>
+                <th className="px-6 py-3.5 font-bold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-slate-400">
+                    <div className="inline-block w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                    <p className="text-sm">Loading suppliers...</p>
+                  </td>
+                </tr>
+              ) : filteredSuppliers.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-6 py-12 text-center text-slate-400">
+                    <p className="text-sm font-medium">No suppliers found.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredSuppliers.map((sup) => (
+                  <tr key={sup._id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-bold text-slate-900">{sup.name}</div>
+                      <div className="text-[11px] text-emerald-600 font-semibold tracking-wide">✓ Verified Supplier</div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 font-medium">{sup.email}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1 text-amber-500">
+                        <Star className="w-4 h-4 fill-amber-500" />
+                        <Star className="w-4 h-4 fill-amber-500" />
+                        <Star className="w-4 h-4 fill-amber-500" />
+                        <Star className="w-4 h-4 fill-amber-500" />
+                        <Star className="w-4 h-4 fill-amber-500/40 text-amber-500" />
+                        <span className="text-slate-500 ml-1.5 text-xs font-semibold">(4.8)</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right space-x-2">
+                      <button
+                        onClick={() => router.push(`/supplier/dashboard`)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 rounded-xl transition-all"
+                        title="View Dashboard"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </AdminLayout>
+  );
 }

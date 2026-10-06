@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
  ShoppingCart, Trash2, Plus, Minus, ArrowRight, MapPin,
@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
-import axios from "axios";
+import api, { getImageUrl, getErrorMessage } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
 // ─── Address Change Modal ───────────────────────────────────────────────────
@@ -39,13 +39,11 @@ function AddressModal({ onClose, onSave, currentAddress }) {
  try {
  const token = localStorage.getItem("dropsync_token");
  if (!token) { toast.error("Please login first"); return; }
- await axios.put("http://localhost:5000/api/users/address", form, {
- headers: { Authorization: `Bearer ${token}` }
- });
+ await api.put("/users/address", form);
  onSave(form);
  toast.success("Address saved successfully!");
  } catch (err) {
- toast.error(err?.response?.data?.message || "Failed to save address");
+ toast.error(getErrorMessage(err));
  } finally {
  setSaving(false);
  }
@@ -218,6 +216,7 @@ function AddressModal({ onClose, onSave, currentAddress }) {
 
 // ─── Cart Item Card ─────────────────────────────────────────────────────────
 function CartItemCard({ item, onRemove, onQtyChange }) {
+ const displayImg = getImageUrl(item.imageUrl || item.img || (item.images && item.images[0]));
  return (
  <motion.div
  layout
@@ -228,9 +227,14 @@ function CartItemCard({ item, onRemove, onQtyChange }) {
  className="flex gap-4 p-4 rounded-2xl border border-slate-700/60 bg-slate-800/40 backdrop-blur-sm hover:border-slate-600 transition-all group"
  >
  {/* Image */}
- <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-shrink-0">
- {item.imageUrl ? (
- <img src={item.imageUrl} alt={item.title} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500" />
+ <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-shrink-0 flex items-center justify-center">
+ {displayImg ? (
+ <img
+   src={displayImg}
+   alt={item.title}
+   className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
+   onError={(e) => { e.target.src = "/placeholder-product.svg"; }}
+ />
  ) : (
  <div className="w-full h-full flex items-center justify-center">
  <Package className="w-8 h-8 text-slate-600" />
@@ -245,15 +249,15 @@ function CartItemCard({ item, onRemove, onQtyChange }) {
  {item.category}
  </span>
  {item.size && (
-   <span className="inline-block text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mb-3 ml-2">
-     Size: {item.size}
-   </span>
+ <span className="inline-block text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-full px-2 py-0.5 mb-3 ml-2">
+ Size: {item.size}
+ </span>
  )}
  <div className="flex items-center justify-between flex-wrap gap-3">
  {/* Qty Controls */}
  <div className="flex items-center gap-1 bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
  <button
- onClick={() => onQtyChange(item._id, item.qty - 1)}
+ onClick={() => onQtyChange(item._id || item.id, item.qty - 1)}
  disabled={item.qty <= 1}
  className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40"
  >
@@ -261,7 +265,7 @@ function CartItemCard({ item, onRemove, onQtyChange }) {
  </button>
  <span className="w-8 text-center text-white font-bold text-sm">{item.qty}</span>
  <button
- onClick={() => onQtyChange(item._id, item.qty + 1)}
+ onClick={() => onQtyChange(item._id || item.id, item.qty + 1)}
  disabled={item.qty >= item.stock}
  className="w-9 h-9 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-40"
  >
@@ -270,13 +274,13 @@ function CartItemCard({ item, onRemove, onQtyChange }) {
  </div>
 
  {/* Price */}
- <p className="text-green-400 font-black text-lg">₹{(item.price * item.qty).toFixed(2)}</p>
+ <p className="text-green-400 font-black text-lg">₹{((item.price || 0) * item.qty).toFixed(2)}</p>
  </div>
  </div>
 
  {/* Remove */}
  <button
- onClick={() => onRemove(item._id)}
+ onClick={() => onRemove(item._id || item.id)}
  className="self-start w-9 h-9 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/40 flex items-center justify-center text-red-400 hover:text-red-300 transition-all flex-shrink-0"
  >
  <Trash2 className="w-4 h-4" />
@@ -309,7 +313,7 @@ export default function CartPage() {
 
  const handleQtyChange = (id, newQty) => {
  if (newQty < 1) return;
- const item = cart.find(i => i.id === id);
+ const item = cart.find(i => (i._id === id || i.id === id));
  if (item && newQty > item.stock) {
  toast.error(`Only ${item.stock} units available`);
  return;
@@ -320,44 +324,43 @@ export default function CartPage() {
  const handleAddressSave = (addr) => {
  setSavedAddress(addr);
  setAddressChanged(true);
-setShowAddressModal(false);
+ setShowAddressModal(false);
  localStorage.setItem("dropsync_address_changed", "true");
  localStorage.setItem("dropsync_saved_address", JSON.stringify(addr));
  };
 
-  const handleCheckout = () => {
-    if (cart.length === 0) { 
-      toast.error("Your cart is empty"); 
-      return; 
-    }
-    const token = localStorage.getItem("dropsync_token");
-    if (!token) {
-      toast.error("Please login to checkout");
-      setTimeout(() => router.push("/login"), 1500);
-      return;
-    }
+ const handleCheckout = () => {
+ if (cart.length === 0) {
+ toast.error("Your cart is empty");
+ return;
+ }
+ const token = localStorage.getItem("dropsync_token");
+ if (!token) {
+ toast.error("Please login to checkout");
+ setTimeout(() => router.push("/login"), 1500);
+ return;
+ }
 
-    const ustr = localStorage.getItem("dropsync_user");
-    if (ustr) {
-      try {
-        const user = JSON.parse(ustr);
-        if (user.role === 'admin' || user.role === 'supplier') {
-          toast.error("Suppliers and Admins are not allowed to place orders.");
-          return;
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
+ const ustr = localStorage.getItem("dropsync_user");
+ if (ustr) {
+ try {
+ const user = JSON.parse(ustr);
+ if (user.role === 'admin' || user.role === 'supplier') {
+ toast.error("Suppliers and Admins are not allowed to place orders.");
+ return;
+ }
+ } catch (e) {
+ console.error(e);
+ }
+ }
 
-    // Store cart data for checkout and redirect
-    localStorage.setItem("dropsync_checkout_cart", JSON.stringify(cart));
-    router.push("/checkout");
-  };
+ localStorage.setItem("dropsync_checkout_cart", JSON.stringify(cart));
+ router.push("/checkout");
+ };
 
-  const subtotal = cart.reduce((sum, i) => sum + i.price * i.qty, 0);
-  const shipping = 0;
-  const total = subtotal + shipping;
+ const subtotal = cart.reduce((sum, i) => sum + (i.price || 0) * i.qty, 0);
+ const shipping = 0;
+ const total = subtotal + shipping;
 
  if (!mounted) return (
  <div className="min-h-screen flex items-center justify-center">
@@ -437,7 +440,7 @@ setShowAddressModal(false);
  <div className="space-y-3">
  {cart.map(item => (
  <CartItemCard
- key={item._id}
+ key={item._id || item.id}
  item={item}
  onRemove={handleRemove}
  onQtyChange={handleQtyChange}
@@ -541,17 +544,20 @@ setShowAddressModal(false);
 
  {/* Item List Mini */}
  <div className="space-y-2 mb-5 max-h-48 overflow-y-auto pr-1">
- {cart.map(item => (
- <div key={item._id} className="flex items-center gap-3 text-sm">
- <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
- {item.imageUrl
- ? <img src={item.imageUrl} className="w-full h-full object-contain" alt={item.title} />
- : <Package className="w-4 h-4 m-2 text-slate-600" />}
+ {cart.map(item => {
+ const itemImg = getImageUrl(item.imageUrl || item.img);
+ return (
+ <div key={item._id || item.id} className="flex items-center gap-3 text-sm">
+ <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center">
+ {itemImg
+ ? <img src={itemImg} className="w-full h-full object-contain" alt={item.title} onError={(e) => { e.target.src = "/placeholder-product.svg"; }} />
+ : <Package className="w-4 h-4 text-slate-600" />}
  </div>
  <span className="flex-1 text-slate-300 line-clamp-1">{item.title}</span>
  <span className="text-white font-semibold flex-shrink-0">{item.size ? `[${item.size}] ` : ""}×{item.qty}</span>
  </div>
- ))}
+ );
+ })}
  </div>
 
  {/* Price Breakdown */}

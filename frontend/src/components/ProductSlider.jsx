@@ -4,18 +4,19 @@ import { useRouter } from 'next/navigation';
 import { Heart, ShoppingBag, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { getImageUrl } from '@/lib/api';
 import toast from 'react-hot-toast';
 
-const ProductSlider = ({ 
- products, 
- title, 
- titleHighlight, 
- subtitle, 
- shopLink, 
+const ProductSlider = ({
+ products = [],
+ title,
+ titleHighlight,
+ subtitle,
+ shopLink,
  shopLinkText,
  showBadge = false,
  badgeText = 'New Arrival',
- showCartButton = true // show cart in info area vs overlay
+ showCartButton = true
 }) => {
  const { addToCart } = useCart();
  const { addToWishlist, isInWishlist } = useWishlist();
@@ -53,13 +54,15 @@ const ProductSlider = ({
  return () => window.removeEventListener('resize', updateItemsPerView);
  }, []);
 
- const totalSlides = Math.ceil(products.length / itemsPerView);
+ const totalSlides = Math.ceil((products || []).length / itemsPerView);
 
  const slideNext = useCallback(() => {
+ if (totalSlides <= 0) return;
  setCurrentIndex((prev) => (prev + 1) % totalSlides);
  }, [totalSlides]);
 
  const slidePrev = useCallback(() => {
+ if (totalSlides <= 0) return;
  setCurrentIndex((prev) => (prev - 1 + totalSlides) % totalSlides);
  }, [totalSlides]);
 
@@ -73,7 +76,8 @@ const ProductSlider = ({
  const handleAddToCart = (item) => {
  const productId = item._id || item.id;
  const productName = item.name || item.title;
- const productImg = item.img || item.imageUrl;
+ const rawImg = item.img || item.imageUrl || (item.images && item.images[0]);
+ const productImg = getImageUrl(rawImg);
  addToCart({...item, _id: productId, id: productId, name: productName, title: productName, img: productImg, imageUrl: productImg, images: [productImg] });
  toast.success(`${productName} added to cart!`);
  };
@@ -81,7 +85,8 @@ const ProductSlider = ({
  const handleAddToWishlist = (item) => {
  const productId = item._id || item.id;
  const productName = item.name || item.title;
- const productImg = item.img || item.imageUrl;
+ const rawImg = item.img || item.imageUrl || (item.images && item.images[0]);
+ const productImg = getImageUrl(rawImg);
  if (isInWishlist(productId)) {
  toast('Already in wishlist', { icon: '❤️' });
  return;
@@ -90,10 +95,9 @@ const ProductSlider = ({
  toast.success(`${productName} added to wishlist!`);
  };
 
- // Get visible products for current slide
  const getVisibleProducts = () => {
  const start = currentIndex * itemsPerView;
- return products.slice(start, start + itemsPerView);
+ return (products || []).slice(start, start + itemsPerView);
  };
 
  return (
@@ -108,8 +112,8 @@ const ProductSlider = ({
  {subtitle}
  </p>
  </div>
- <a 
- href={shopLink} 
+ <a
+ href={shopLink}
  className="text-[10px] font-bold uppercase tracking-widest border-b border-black pb-1 hover:text-gray-500 hover:border-gray-500 transition-all hidden sm:block"
  >
  {shopLinkText}
@@ -118,18 +122,18 @@ const ProductSlider = ({
 
  {/* Product Slider Wrapper */}
  <div className="max-w-7xl mx-auto relative group/slider">
- 
+
  {/* Slider Controls */}
  {totalSlides > 1 && (
  <>
- <button 
+ <button
  onClick={slidePrev}
  className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-white border border-black p-3 opacity-0 group-hover/slider:opacity-100 transition-all shadow-xl hover:bg-black hover:text-white"
  aria-label="Previous slide"
  >
  <ChevronLeft size={20} />
  </button>
- <button 
+ <button
  onClick={slideNext}
  className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 bg-white border border-black p-3 opacity-0 group-hover/slider:opacity-100 transition-all shadow-xl hover:bg-black hover:text-white"
  aria-label="Next slide"
@@ -141,7 +145,7 @@ const ProductSlider = ({
 
  {/* Slider Content with Animation */}
  <div ref={sliderRef} className="overflow-hidden">
- <div 
+ <div
  className="grid gap-6 transition-all duration-500 ease-in-out"
  style={{
  gridTemplateColumns: `repeat(${itemsPerView}, minmax(0, 1fr))`
@@ -150,22 +154,24 @@ const ProductSlider = ({
  {getVisibleProducts().map((item) => {
  const productId = item._id || item.id;
  const productName = item.name || item.title;
- const productImg = item.img || item.imageUrl;
- 
+ const rawImg = item.img || item.imageUrl || (item.images && item.images[0]);
+ const productImg = getImageUrl(rawImg);
+
  return (
  <div key={productId} className="relative group/card">
- 
+
  {/* Image Container */}
- <div 
+ <div
  className="aspect-[3/4] bg-gray-50 overflow-hidden relative border border-black/5 cursor-pointer"
  onClick={() => router.push(`/product/${productId}`)}
  >
- <img 
- src={productImg} 
- alt={productName} 
- className="w-full h-full object-contain transition-all duration-700 group-hover/card:scale-105" 
+ <img
+ src={productImg}
+ alt={productName}
+ className="w-full h-full object-contain transition-all duration-700 group-hover/card:scale-105"
+ onError={(e) => { e.target.src = "/placeholder-product.svg"; }}
  />
- 
+
  {/* Badge */}
  {showBadge && (
  <div className="absolute top-4 left-4">
@@ -174,18 +180,18 @@ const ProductSlider = ({
  </span>
  </div>
  )}
- 
+
  {/* Wishlist Button */}
- <button 
+ <button
  onClick={(e) => { e.stopPropagation(); handleAddToWishlist(item); }}
  className={`absolute top-4 right-4 transition-colors ${isInWishlist(productId) ? 'text-red-500' : 'text-black hover:text-red-500'}`}
  >
  <Heart size={18} strokeWidth={1.5} fill={isInWishlist(productId) ? 'currentColor' : 'none'} />
  </button>
- 
- {/* Add to Cart Overlay (slides up on hover) */}
+
+ {/* Add to Cart Overlay */}
  {userRole !== 'admin' && userRole !== 'supplier' && (
- <button 
+ <button
  onClick={(e) => { e.stopPropagation(); handleAddToCart(item); }}
  className="absolute bottom-0 left-0 right-0 translate-y-full group-hover/card:translate-y-0 transition-transform duration-300 bg-white/90 py-2 text-center text-[10px] font-bold uppercase tracking-tighter text-gray-800 cursor-pointer hover:bg-black hover:text-white"
  >
@@ -193,7 +199,7 @@ const ProductSlider = ({
  </button>
  )}
  </div>
- 
+
  {/* Info Container */}
  <div className="mt-4 flex flex-col gap-2">
  <div className="flex justify-between items-start">
@@ -201,19 +207,19 @@ const ProductSlider = ({
  <h3 className="text-[10px] font-bold uppercase tracking-tight truncate max-w-[150px]">
  {productName}
  </h3>
- <p className="text-lg font-bold">₹{item.price.toLocaleString()}</p>
+ <p className="text-lg font-bold">₹{(item.price || 0).toLocaleString()}</p>
  </div>
- 
+
  {/* Quick Action Buttons */}
  <div className="flex gap-2">
- <button 
+ <button
  onClick={() => router.push(`/product/${productId}`)}
  className="p-2.5 bg-gray-50 text-gray-400 hover:text-black border border-transparent hover:border-black transition-all"
  >
  <Eye size={16} />
  </button>
  {showBadge && userRole !== 'admin' && userRole !== 'supplier' && (
- <button 
+ <button
  onClick={() => handleAddToCart(item)}
  className="p-2.5 bg-black text-white hover:bg-gray-800 transition-all"
  >
@@ -223,7 +229,7 @@ const ProductSlider = ({
  </div>
  </div>
  </div>
- 
+
  </div>
  );
  })}
@@ -249,8 +255,8 @@ const ProductSlider = ({
 
  {/* Mobile shop link */}
  <div className="sm:hidden text-center mt-8">
- <a 
- href={shopLink} 
+ <a
+ href={shopLink}
  className="text-[10px] font-bold uppercase tracking-widest border-b border-black pb-1 hover:text-gray-500 hover:border-gray-500 transition-all"
  >
  {shopLinkText}

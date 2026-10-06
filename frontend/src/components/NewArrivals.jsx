@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import ProductSlider from './ProductSlider';
-import axios from 'axios';
+import api from '@/lib/api';
 
 const NewArrivals = () => {
  const [products, setProducts] = useState([]);
@@ -21,12 +21,11 @@ const NewArrivals = () => {
  useEffect(() => {
  const fetchNewArrivals = async () => {
  try {
- const res = await axios.get('http://localhost:5000/api/products');
+ const res = await api.get('/products');
  if (res.data && res.data.length > 0) {
- // Sort by date descending and take top 8
  const sorted = res.data
-.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-.slice(0, 8);
+ .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+ .slice(0, 8);
  setProducts(sorted);
  } else {
  setProducts(placeholderProducts);

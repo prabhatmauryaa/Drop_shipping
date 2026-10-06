@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import ProductSlider from './ProductSlider';
-import axios from 'axios';
+import api from '@/lib/api';
 
 const AccessoriesSection = () => {
  const [products, setProducts] = useState([]);
@@ -21,7 +21,7 @@ const AccessoriesSection = () => {
  useEffect(() => {
  const fetchAccessories = async () => {
  try {
- const res = await axios.get('http://localhost:5000/api/products');
+ const res = await api.get('/products');
  if (res.data && res.data.length > 0) {
  const accessories = res.data.filter(p => p.category === 'Accessories');
  if (accessories.length > 0) {

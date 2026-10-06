@@ -7,8 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, ShoppingCart, User, Package, Zap, Search, ChevronRight, Loader, Heart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 import { useWishlist } from "@/context/WishlistContext";
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+import api, { getImageUrl } from "@/lib/api";
 
 export default function Navbar() {
     const [mounted, setMounted] = useState(false);
@@ -63,7 +62,6 @@ export default function Navbar() {
         setToken(localStorage.getItem("dropsync_token"));
     }, [pathname]);
 
-
     useEffect(() => {
         const handleClickOutside = (event) => {
             if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -94,13 +92,13 @@ export default function Navbar() {
 
         searchTimeoutRef.current = setTimeout(async () => {
             try {
-                const response = await fetch(`${API_BASE_URL}/products`);
-                const products = await response.json();
+                const response = await api.get("/products");
+                const products = response.data || [];
 
                 const filtered = products.filter((product) =>
-                    product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    product.category.toLowerCase().includes(searchQuery.toLowerCase())
+                    product.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    product.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    product.category?.toLowerCase().includes(searchQuery.toLowerCase())
                 );
 
                 setSearchResults(filtered.slice(0, 6));
@@ -137,7 +135,6 @@ export default function Navbar() {
                 const pUser = JSON.parse(ustr);
                 if (pUser.role === 'supplier') {
                     suppliersLinkName = pUser.name;
-
                 }
             } catch (e) {
                 console.error(e);
@@ -150,7 +147,6 @@ export default function Navbar() {
         { name: "Products", path: "/products" },
         { name: suppliersLinkName, path: "/suppliers" },
     ];
-
 
     const renderAuthLinks = () => {
         if (token) {
@@ -166,16 +162,17 @@ export default function Navbar() {
             }
             return (
                 <div className="flex flex-col md:flex-row md:items-center gap-4">
-                    <Link href={dashLink} onClick={() => setIsOpen(false)} className="text-slate-300 hover:text-blue-400 transition-colors text-sm font-medium flex items-center gap-2">
-                        <User className="w-4 h-4" /> Dashboard
+                    <Link href={dashLink} onClick={() => setIsOpen(false)} className="text-slate-300 hover:text-white transition-colors text-sm font-medium flex items-center gap-1.5 py-1">
+                        <User className="w-4 h-4 text-blue-400" /> Dashboard
                     </Link>
                     <button
                         onClick={() => {
                             localStorage.removeItem("dropsync_token");
+                            localStorage.removeItem("dropsync_user");
                             setToken(null);
                             window.location.href = "/";
                         }}
-                        className="px-4 py-2 rounded-xl text-sm font-bold border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all text-left md:text-center"
+                        className="px-4 py-2 rounded-xl text-sm font-bold border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all text-left md:text-center"
                     >
                         Logout
                     </button>
@@ -185,10 +182,10 @@ export default function Navbar() {
 
         return (
             <div className="flex flex-col md:flex-row md:items-center gap-4">
-                <Link href="/login" onClick={() => setIsOpen(false)} className="text-slate-300 hover:text-white transition-colors text-sm font-medium">
+                <Link href="/login" onClick={() => setIsOpen(false)} className="text-slate-300 hover:text-white transition-colors text-sm font-medium py-1">
                     Login
                 </Link>
-                <Link href="/signup" onClick={() => setIsOpen(false)} className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-2">
+                <Link href="/signup" onClick={() => setIsOpen(false)} className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-lg shadow-blue-500/20 transition-all flex items-center justify-center gap-1.5">
                     <span>Sign Up</span>
                 </Link>
             </div>
@@ -197,20 +194,19 @@ export default function Navbar() {
 
     return (
         <header
-            className={`sticky top-0 left-0 right-0 z-50 transition-all duration-500 transform ${isVisible ? "translate-y-0" : "-translate-y-full"} ${isScrolled ? "bg-slate-900/90 backdrop-blur-md border-b border-white/10 shadow-xl py-3" : "bg-slate-950 border-b border-transparent py-3"
+            className={`sticky top-0 left-0 right-0 z-50 transition-all duration-300 transform ${isVisible ? "translate-y-0" : "-translate-y-full"} ${isScrolled ? "bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-lg py-3" : "bg-transparent py-4"
                 }`}
         >
-            <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between relative">
-
-
-                <div className="flex items-center gap-4">
-                    {/* Left Menu Button (Categories/Search) - Hidden on mobile when logged in */}
+            <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-between relative">
+                <div className="flex items-center gap-6">
+                    {/* Left Menu Button (Categories/Search) */}
                     <div className={`relative ${token ? 'hidden md:block' : 'block'}`} ref={menuRef}>
                         <button
-                            className="p-2 rounded-lg hover:bg-slate-800 transition-colors text-slate-300 hover:text-white"
+                            className="p-2 rounded-xl hover:bg-white/5 transition-colors text-slate-300 hover:text-white"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            aria-label="Toggle categories menu"
                         >
-                            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                         </button>
 
                         <AnimatePresence>
@@ -220,7 +216,7 @@ export default function Navbar() {
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                                     transition={{ duration: 0.2 }}
-                                    className="absolute top-full left-0 mt-2 w-72 max-h-96 bg-slate-800/95 backdrop-blur-md border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col"
+                                    className="absolute top-full left-0 mt-2 w-72 max-h-96 bg-slate-900/95 backdrop-blur-md border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 flex flex-col"
                                 >
                                     <div className="flex flex-col p-4 gap-2 overflow-y-auto">
                                         <form onSubmit={handleSearch} className="mb-2">
@@ -231,9 +227,9 @@ export default function Navbar() {
                                                     placeholder="Search products..."
                                                     value={searchQuery}
                                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="w-full px-4 py-2.5 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm"
+                                                    className="w-full px-4 py-2 rounded-xl bg-slate-800/50 border border-white/10 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 text-sm transition-all"
                                                 />
-                                                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                                <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
                                                     {isSearching ? <Loader className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                                                 </button>
                                             </div>
@@ -242,14 +238,15 @@ export default function Navbar() {
                                         {!searchQuery.trim() && (
                                             <>
                                                 <div className="h-px bg-slate-700 my-1" />
+                                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-4 py-1">Quick Browse</p>
                                                 {["Men", "Women", "Accessories", "New Arrivals"].map((cat) => (
                                                     <Link
                                                         key={cat}
                                                         href={`/products?category=${cat}`}
                                                         onClick={() => setIsMenuOpen(false)}
-                                                        className="px-4 py-3 rounded-lg text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors flex items-center justify-between group"
+                                                        className="px-4 py-2 rounded-lg text-slate-300 hover:bg-white/5 hover:text-white transition-colors flex items-center justify-between group"
                                                     >
-                                                        <span className="font-medium">{cat}</span>
+                                                        <span>{cat}</span>
                                                         <ChevronRight className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity" />
                                                     </Link>
                                                 ))}
@@ -258,6 +255,45 @@ export default function Navbar() {
                                                     <Package className="w-4 h-4" /> View All Products
                                                 </Link>
                                             </>
+                                        )}
+
+                                        {searchQuery.trim() && searchResults.length > 0 && (
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 py-1">Search Results</p>
+                                                {searchResults.map((product) => {
+                                                    const img = getImageUrl(product.imageUrl || (product.images && product.images[0]));
+                                                    return (
+                                                        <Link
+                                                            key={product._id}
+                                                            href={`/product/${product._id}`}
+                                                            onClick={() => {
+                                                                setIsMenuOpen(false);
+                                                                setSearchQuery("");
+                                                            }}
+                                                            className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors group"
+                                                        >
+                                                            {img && (
+                                                                <img
+                                                                    src={img}
+                                                                    alt={product.title}
+                                                                    className="w-10 h-10 object-cover rounded-md"
+                                                                    onError={(e) => { e.target.src = "/placeholder-product.svg"; }}
+                                                                />
+                                                            )}
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm text-slate-200 group-hover:text-white truncate">{product.title}</p>
+                                                                <p className="text-xs text-blue-400 font-semibold">₹{product.price}</p>
+                                                            </div>
+                                                        </Link>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {searchQuery.trim() && searchResults.length === 0 && !isSearching && (
+                                            <div className="text-center py-6 text-slate-400 text-sm">
+                                                No products found for "{searchQuery}"
+                                            </div>
                                         )}
                                     </div>
                                 </motion.div>
@@ -283,7 +319,6 @@ export default function Navbar() {
                                 href={link.path}
                                 className={`text-sm font-medium transition-all relative cursor-pointer ${pathname === link.path ? "text-white" : "text-slate-400 hover:text-white"}`}
                             >
-
                                 {link.name}
                                 {pathname === link.path && (
                                     <motion.div layoutId="navbar-indicator" className="absolute -bottom-2 left-0 right-0 h-0.5 bg-blue-500 rounded-full" />
@@ -332,7 +367,6 @@ export default function Navbar() {
                 </div>
             </div>
 
-
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
@@ -345,7 +379,6 @@ export default function Navbar() {
                         <div className="flex flex-col p-6 gap-4">
                             {navLinks.map((link) => (
                                 <Link key={link.path} href={link.path} onClick={() => setIsOpen(false)} className={`text-base font-medium p-3 rounded-xl cursor-pointer ${pathname === link.path ? "bg-blue-600/10 text-blue-400" : "text-slate-300 hover:bg-slate-800"}`}>
-
                                     {link.name}
                                 </Link>
                             ))}

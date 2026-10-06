@@ -44,7 +44,8 @@ router.post("/products", authMiddleware, upload.array("images", 5), (req, res) =
       return res.status(400).json({ message: "Please upload at least one image" });
     }
 
-    const filePaths = req.files.map((file) => `http://localhost:5000/uploads/products/${file.filename}`);
+    const baseUrl = process.env.BACKEND_URL || `${req.protocol}://${req.get("host")}`;
+    const filePaths = req.files.map((file) => `${baseUrl}/uploads/products/${file.filename}`);
     res.status(200).json({ images: filePaths });
   } catch (error) {
     res.status(500).json({ message: "Upload failed", error: error.message });

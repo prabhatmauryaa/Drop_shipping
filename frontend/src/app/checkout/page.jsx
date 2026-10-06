@@ -4,8 +4,8 @@ import React, { useEffect, useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle, ShieldCheck, Truck, DollarSign, MapPin, ArrowLeft, Trash2, Zap } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
-import axios from "axios";
 import Script from "next/script";
+import api, { getImageUrl } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
 function CheckoutContent() {
@@ -14,7 +14,7 @@ function CheckoutContent() {
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isProcessing, setIsProcessing] = useState(false);
-    
+
     const [address, setAddress] = useState({
         street: "",
         city: "",
@@ -22,7 +22,7 @@ function CheckoutContent() {
         state: "",
         country: "India"
     });
-    
+
     const [paymentMethod, setPaymentMethod] = useState("COD");
     const [isFastDelivery, setIsFastDelivery] = useState(false);
     const [isEligibleForFast, setIsEligibleForFast] = useState(false);
@@ -40,7 +40,10 @@ function CheckoutContent() {
         return R * c;
     };
 
+    const [isCheckingFast, setIsCheckingFast] = useState(false);
+
     useEffect(() => {
+
         const ustr = localStorage.getItem("dropsync_user");
         if (ustr) {
             try {
@@ -61,7 +64,14 @@ function CheckoutContent() {
             if (savedCart) {
                 const items = JSON.parse(savedCart);
                 setCartItems(items);
-                checkQuickDeliveryEligibility(items);
+                // Safe check: Only query location automatically if user has ALREADY granted permission previously
+                if (typeof window !== "undefined" && navigator?.permissions?.query) {
+                    navigator.permissions.query({ name: "geolocation" }).then((status) => {
+                        if (status.state === "granted") {
+                            checkQuickDeliveryEligibility(items, false);
+                        }
+                    }).catch(() => {});
+                }
             } else {
                 toast.error("No items in cart");
                 setTimeout(() => router.push("/cart"), 1500);
@@ -74,54 +84,62 @@ function CheckoutContent() {
         }
     }, []);
 
-    const checkQuickDeliveryEligibility = async (items) => {
+    const checkQuickDeliveryEligibility = async (items, isUserInitiated = false) => {
         if (!navigator.geolocation) {
-            console.log("Geolocation not supported");
+            if (isUserInitiated) toast.error("Geolocation is not supported by your browser");
             return;
         }
 
-        navigator.geolocation.getCurrentPosition(async (position) => {
-            const { latitude, longitude } = position.coords;
-            setUserCoords({ lat: latitude, lng: longitude });
+        if (isUserInitiated) setIsCheckingFast(true);
 
-            try {
-                const token = localStorage.getItem("dropsync_token");
-                const supplierIds = [...new Set(items.map(item => item.supplier).filter(id => id && id !== "000000000000000000000000"))];
-                
-                if (supplierIds.length === 0) return;
+        navigator.geolocation.getCurrentPosition(
+            async (position) => {
+                const { latitude, longitude } = position.coords;
+                setUserCoords({ lat: latitude, lng: longitude });
 
-                const res = await axios.post("http://localhost:5000/api/users/locations", { ids: supplierIds }, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                try {
+                    const supplierIds = [...new Set(items.map(item => item.supplier).filter(id => id && id !== "000000000000000000000000"))];
 
-                const supplierLocations = res.data;
-                let allWithinRange = true;
+                    if (supplierIds.length === 0) return;
 
-                for (const supplier of supplierLocations) {
-                    if (supplier.location?.lat && supplier.location?.lng) {
-                        const distance = calculateDistance(latitude, longitude, supplier.location.lat, supplier.location.lng);
-                        if (distance > 5) {
+                    const res = await api.post("/users/locations", { ids: supplierIds });
+
+                    const supplierLocations = res.data;
+                    let allWithinRange = true;
+
+                    for (const supplier of supplierLocations) {
+                        if (supplier.location?.lat && supplier.location?.lng) {
+                            const distance = calculateDistance(latitude, longitude, supplier.location.lat, supplier.location.lng);
+                            if (distance > 5) {
+                                allWithinRange = false;
+                                break;
+                            }
+                        } else {
                             allWithinRange = false;
                             break;
                         }
-                    } else {
-                        // If supplier location is unknown, assume not eligible for safety
-                        allWithinRange = false;
-                        break;
                     }
-                }
 
-                setIsEligibleForFast(allWithinRange);
-                if (allWithinRange) {
-                    toast.success("You are eligible for Quick Delivery! (Under 5km range)", { icon: '⚡' });
+                    setIsEligibleForFast(allWithinRange);
+                    if (allWithinRange) {
+                        toast.success("You are eligible for Quick Delivery! (Under 5km range)", { icon: '⚡' });
+                    } else if (isUserInitiated) {
+                        toast("Suppliers are farther than 5km. Standard express shipping will be used.", { icon: '📦' });
+                    }
+                } catch (err) {
+                    console.error("Error checking eligibility:", err);
+                } finally {
+                    if (isUserInitiated) setIsCheckingFast(false);
                 }
-
-            } catch (err) {
-                console.error("Error checking eligibility:", err);
-            }
-        }, (error) => {
-            console.log("Location access denied or error:", error);
-        });
+            },
+            (error) => {
+                if (isUserInitiated) {
+                    toast.error("Location permission denied. Continuing with standard delivery.");
+                    setIsCheckingFast(false);
+                }
+            },
+            { timeout: 8000 }
+        );
     };
 
     const placeOrder = async () => {
@@ -168,47 +186,36 @@ function CheckoutContent() {
 
         try {
             if (paymentMethod === "COD") {
-                await axios.post("http://localhost:5000/api/orders", orderData, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                
+                await api.post("/orders", orderData);
+
                 clearCart();
                 localStorage.removeItem("dropsync_checkout_cart");
-                
+
                 toast.success("Order Placed Successfully!");
                 setTimeout(() => window.location.href = "/dashboard", 1500);
-            } 
+            }
             else if (paymentMethod === "Razorpay") {
                 toast.loading("Initializing Secure Payment...", { id: "payment" });
-                const keyRes = await axios.get("http://localhost:5000/api/payments/key", {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                const keyRes = await api.get("/payments/key");
 
-                const orderRes = await axios.post("http://localhost:5000/api/payments/create-order", 
-                    { amount: totalPrice }, 
-                    { headers: { Authorization: `Bearer ${token}` }}
-                );
-                
+                const orderRes = await api.post("/payments/create-order", { amount: totalPrice });
+
                 const options = {
                     key: keyRes.data.key,
                     amount: orderRes.data.amount,
                     currency: "INR",
                     name: "Vastra culture Marketplace",
                     description: `Secure purchase of ${cartItems.length} items`,
-                    order_id: orderRes.data.id, 
+                    order_id: orderRes.data.id,
                     handler: async function (response) {
                         toast.loading("Verifying Payment...", { id: "payment" });
                         try {
-                            await axios.post("http://localhost:5000/api/payments/verify", response, { 
-                                headers: { Authorization: `Bearer ${token}` }
-                            });
-                            await axios.post("http://localhost:5000/api/orders", orderData, { 
-                                headers: { Authorization: `Bearer ${token}` }
-                            });
-                            
+                            await api.post("/payments/verify", response);
+                            await api.post("/orders", orderData);
+
                             clearCart();
                             localStorage.removeItem("dropsync_checkout_cart");
-                            
+
                             toast.success("Payment Successful! Order Confirmed.", { id: "payment" });
                             setTimeout(() => window.location.href = "/dashboard", 1500);
                         } catch (err) {
@@ -222,7 +229,7 @@ function CheckoutContent() {
                 const rzp = new window.Razorpay(options);
                 toast.dismiss("payment");
                 rzp.open();
-                
+
                 rzp.on('payment.failed', function (response){
                     toast.error("Payment Failed: " + response.error.description);
                     setIsProcessing(false);
@@ -244,12 +251,12 @@ function CheckoutContent() {
         <div className="min-h-screen w-full relative pt-24 px-4 pb-20 max-w-5xl mx-auto flex flex-col">
             <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
             <Toaster position="top-center" />
-            
+
             <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />
 
             <div className="w-full flex items-center mb-8">
-                <button 
-                    onClick={() => router.back()} 
+                <button
+                    onClick={() => router.back()}
                     className="text-slate-400 hover:text-white flex items-center gap-2 transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5" /> Back
@@ -261,7 +268,7 @@ function CheckoutContent() {
             </h1>
 
             <div className="flex flex-col lg:flex-row gap-8">
-                
+
                 <div className="w-full lg:w-2/3 space-y-6">
                     <div className="glass rounded-2xl border border-slate-700/50 p-6 shadow-xl">
                         <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2 border-b border-slate-800 pb-3">
@@ -270,50 +277,50 @@ function CheckoutContent() {
                         <div className="space-y-4 pt-2">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1">Street Address</label>
-                                <input 
-                                    type="text" 
-                                    value={address.street} 
+                                <input
+                                    type="text"
+                                    value={address.street}
                                     onChange={(e) => setAddress({...address, street: e.target.value})}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" 
-                                    placeholder="123 Example Street, Apt 4B" 
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                                    placeholder="123 Example Street, Apt 4B"
                                 />
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-1">City</label>
-                                    <input 
-                                        type="text" 
-                                        value={address.city} 
+                                    <input
+                                        type="text"
+                                        value={address.city}
                                         onChange={(e) => setAddress({...address, city: e.target.value})}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" 
-                                        placeholder="Mumbai" 
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                                        placeholder="Mumbai"
                                     />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-1">State</label>
-                                    <input 
-                                        type="text" 
-                                        value={address.state} 
+                                    <input
+                                        type="text"
+                                        value={address.state}
                                         onChange={(e) => setAddress({...address, state: e.target.value})}
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" 
-                                        placeholder="Maharashtra" 
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                                        placeholder="Maharashtra"
                                     />
                                 </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1">Postal Code</label>
-                                <input 
-                                    type="text" 
-                                    value={address.postalCode} 
+                                <input
+                                    type="text"
+                                    value={address.postalCode}
                                     onChange={(e) => setAddress({...address, postalCode: e.target.value})}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500" 
-                                    placeholder="400001" 
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500"
+                                    placeholder="400001"
                                 />
                             </div>
                         </div>
                     </div>
 
-                    {isEligibleForFast && (
+                    {isEligibleForFast ? (
                         <div className="glass rounded-2xl border border-yellow-500/30 p-6 shadow-xl bg-yellow-500/5">
                             <div className="flex items-start gap-4">
                                 <div className="w-12 h-12 rounded-full bg-yellow-500/20 flex items-center justify-center flex-shrink-0 border border-yellow-500/30">
@@ -327,6 +334,28 @@ function CheckoutContent() {
                                         <span className="font-bold text-white">Enable Quick Delivery (Free)</span>
                                     </label>
                                 </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="glass rounded-2xl border border-slate-700/40 p-5 shadow-lg bg-slate-900/30">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0 border border-yellow-500/20">
+                                        <Zap className="w-5 h-5 text-yellow-400" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-white">Want Quick Delivery (Under 5km)?</h4>
+                                        <p className="text-xs text-slate-400">Check if your delivery location is within 5km of our suppliers.</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => checkQuickDeliveryEligibility(cartItems, true)}
+                                    disabled={isCheckingFast}
+                                    className="px-4 py-2.5 bg-yellow-500/10 hover:bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    {isCheckingFast ? "Checking..." : "⚡ Check Quick Delivery"}
+                                </button>
                             </div>
                         </div>
                     )}
@@ -358,12 +387,21 @@ function CheckoutContent() {
                 <div className="w-full lg:w-1/3">
                     <div className="glass rounded-2xl border border-slate-700/50 p-6 shadow-xl sticky top-24">
                         <h2 className="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-3">Order Summary</h2>
-                        
+
                         <div className="space-y-3 max-h-64 overflow-y-auto mb-6 pb-6 border-b border-slate-800">
                             {cartItems.map((item) => (
                                 <div key={item._id} className="flex gap-3 items-center bg-slate-900/40 p-3 rounded-lg">
                                     <div className="w-12 h-12 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex-shrink-0">
-                                        {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-700"></div>}
+                                        {item.imageUrl ? (
+                                            <img
+                                                src={getImageUrl(item.imageUrl)}
+                                                alt={item.title}
+                                                onError={(e) => { e.target.src = "/placeholder-product.svg"; }}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        ) : (
+                                            <div className="w-full h-full bg-slate-700"></div>
+                                        )}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="font-semibold text-white text-sm line-clamp-1">{item.title}</p>
@@ -386,7 +424,7 @@ function CheckoutContent() {
                             </div>
                         </div>
 
-                        <button 
+                        <button
                             onClick={placeOrder}
                             disabled={isProcessing}
                             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all"

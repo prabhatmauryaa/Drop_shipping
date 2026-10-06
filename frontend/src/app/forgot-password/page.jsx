@@ -3,23 +3,22 @@
 import React, { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Mail, Lock, ShieldCheck, ArrowRight, ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
-import axios from "axios";
-import * as YupValidation from "yup";
+import api, { getErrorMessage } from "@/lib/api";
+import * as Yup from "yup";
 
-const Step1Schema = YupValidation.object().shape({
- email: YupValidation.string().email("Invalid email").required("Email is required"),
+const Step1Schema = Yup.object().shape({
+ email: Yup.string().email("Invalid email").required("Email is required"),
 });
 
-const Step2Schema = YupValidation.object().shape({
- otp: YupValidation.string().length(6, "OTP must be exactly 6 digits").required("OTP is required"),
+const Step2Schema = Yup.object().shape({
+ otp: Yup.string().length(6, "Must be exact 6 digits").required("OTP code is required"),
 });
 
-const Step3Schema = YupValidation.object().shape({
- newPassword: YupValidation.string().min(6, "Must be at least 6 characters").required("New Password is required"),
+const Step3Schema = Yup.object().shape({
+ newPassword: Yup.string().min(6, "Must be at least 6 characters").required("Password is required"),
 });
 
 export default function ForgotPasswordPage() {
@@ -30,13 +29,12 @@ export default function ForgotPasswordPage() {
 
  const handleRequestOtp = async (values, { setSubmitting }) => {
  try {
- const response = await axios.post("http://localhost:5000/api/auth/forgot-password", { email: values.email });
+ await api.post("/auth/forgot-password", { email: values.email });
  setEmail(values.email);
  setStep(2);
- 
  toast.success("Secure OTP code sent to your email!");
  } catch (error) {
- toast.error(error.response?.data?.message || "User profile not found.");
+ toast.error(getErrorMessage(error));
  } finally {
  setSubmitting(false);
  }
@@ -44,12 +42,12 @@ export default function ForgotPasswordPage() {
 
  const handleVerifyOtp = async (values, { setSubmitting }) => {
  try {
- await axios.post("http://localhost:5000/api/auth/verify-otp", { email, otp: values.otp });
+ await api.post("/auth/verify-otp", { email, otp: values.otp });
  setOtpCode(values.otp);
  setStep(3);
  toast.success("OTP Verified! Proceed to create password.");
  } catch (error) {
- toast.error(error.response?.data?.message || "Invalid or expired OTP");
+ toast.error(getErrorMessage(error));
  } finally {
  setSubmitting(false);
  }
@@ -57,15 +55,15 @@ export default function ForgotPasswordPage() {
 
  const handleResetPassword = async (values, { setSubmitting }) => {
  try {
- await axios.post("http://localhost:5000/api/auth/reset-password", { 
- email, 
- otp: otpCode, 
- newPassword: values.newPassword 
+ await api.post("/auth/reset-password", {
+ email,
+ otp: otpCode,
+ newPassword: values.newPassword
  });
  toast.success("Password secured! Redirecting to login...", { duration: 3000 });
  setTimeout(() => router.push("/login"), 1500);
  } catch (error) {
- toast.error(error.response?.data?.message || "Password execution failed");
+ toast.error(getErrorMessage(error));
  } finally {
  setSubmitting(false);
  }
@@ -74,12 +72,12 @@ export default function ForgotPasswordPage() {
  return (
  <div className="min-h-screen w-full flex bg-slate-950 text-slate-200">
  <Toaster position="top-right" />
- 
+
  {/* Left side: Beautiful Artistic Branding View */}
  <div className="hidden lg:flex flex-1 relative overflow-hidden bg-slate-900 border-r border-slate-800 flex-col items-center justify-center p-12">
  <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
  <div className="absolute bottom-[-10%] left-[-10%] w-[60%] h-[60%] bg-purple-600/20 rounded-full blur-[120px] pointer-events-none"></div>
- 
+
  <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }} className="z-10 text-center max-w-lg">
  <div className="inline-flex items-center justify-center w-20 h-20 bg-blue-500/10 rounded-3xl border border-blue-500/20 mb-8 shadow-2xl shadow-blue-500/10">
  <ShieldCheck className="w-10 h-10 text-blue-500" />
@@ -100,7 +98,7 @@ export default function ForgotPasswordPage() {
  <ArrowLeft className="w-4 h-4"/> Back
  </button>
  </div>
- 
+
  <div className="w-full max-w-md">
  <AnimatePresence mode="wait">
  {step === 1 && (
@@ -119,18 +117,18 @@ export default function ForgotPasswordPage() {
  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-500 transition-colors">
  <Mail className="h-5 w-5" />
  </div>
- <Field 
- name="email" 
- type="email" 
- placeholder="you@example.com" 
- className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm" 
+ <Field
+ name="email"
+ type="email"
+ placeholder="you@example.com"
+ className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
  />
  </div>
  <ErrorMessage name="email" component="p" className="text-red-400 text-xs mt-1.5 font-medium" />
  </div>
 
- <button 
- type="submit" 
+ <button
+ type="submit"
  disabled={isSubmitting}
  className="w-full mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 group"
  >
@@ -157,19 +155,19 @@ export default function ForgotPasswordPage() {
  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-500 transition-colors">
  <ShieldCheck className="h-5 w-5" />
  </div>
- <Field 
- name="otp" 
- type="text" 
+ <Field
+ name="otp"
+ type="text"
  maxLength="6"
- placeholder="000000" 
- className="w-full tracking-widest text-center text-xl bg-slate-900/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm" 
+ placeholder="000000"
+ className="w-full tracking-widest text-center text-xl bg-slate-900/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
  />
  </div>
  <ErrorMessage name="otp" component="p" className="text-red-400 text-xs mt-1.5 font-medium" />
  </div>
 
- <button 
- type="submit" 
+ <button
+ type="submit"
  disabled={isSubmitting}
  className="w-full mt-6 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
  >
@@ -195,18 +193,18 @@ export default function ForgotPasswordPage() {
  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 group-focus-within:text-blue-500 transition-colors">
  <Lock className="h-5 w-5" />
  </div>
- <Field 
- name="newPassword" 
- type="password" 
- placeholder="••••••••" 
- className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm" 
+ <Field
+ name="newPassword"
+ type="password"
+ placeholder="••••••••"
+ className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-11 pr-4 py-3.5 text-white placeholder:text-slate-600 focus:border-blue-500/50 focus:bg-slate-900 focus:ring-4 focus:ring-blue-500/10 transition-all shadow-sm"
  />
  </div>
  <ErrorMessage name="newPassword" component="p" className="text-red-400 text-xs mt-1.5 font-medium" />
  </div>
 
- <button 
- type="submit" 
+ <button
+ type="submit"
  disabled={isSubmitting}
  className="w-full mt-6 bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
  >

@@ -49,7 +49,7 @@ export default function Footer() {
  <div>
  <h3 className="text-white font-semibold mb-4 text-lg">Stay Updated</h3>
  <p className="text-sm mb-4">Subscribe to our newsletter for the latest products and updates.</p>
- <form className="flex">
+ <form className="flex" onSubmit={(e) => e.preventDefault()}>
  <input
  type="email"
  placeholder="Enter your email"
