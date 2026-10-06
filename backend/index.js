@@ -27,6 +27,10 @@ const app = express();
 const frontendUrl =
   process.env.FRONTEND_URL ||
   "https://drop-shipping-jyvq2oej1-prabhatmauryaas-projects.vercel.app";
+const frontendUrls = [
+  frontendUrl,
+  "https://vastraculture.vercel.app",
+];
 
 // Middleware
 app.use(express.json({ limit: "10mb" }));
@@ -38,7 +42,7 @@ app.use(cors({
       /^https:\/\/drop-shipping-[a-z0-9-]+-prabhatmauryaas-projects\.vercel\.app$/i.test(origin);
     const isAllowedOrigin =
       !origin ||
-      origin === frontendUrl ||
+      frontendUrls.includes(origin) ||
       origin === "http://localhost:3000" ||
       origin === "http://127.0.0.1:3000" ||
       isProjectDeployment;
