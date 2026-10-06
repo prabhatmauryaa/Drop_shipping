@@ -24,11 +24,27 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const app = express();
 
+const frontendUrl =
+  process.env.FRONTEND_URL ||
+  "https://drop-shipping-jyvq2oej1-prabhatmauryaas-projects.vercel.app";
+
 // Middleware
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ limit: "10mb", extended: true }));
 app.use(cors({
-  origin: "*",
+  origin: (origin, callback) => {
+    const isProjectDeployment =
+      origin &&
+      /^https:\/\/drop-shipping-[a-z0-9-]+-prabhatmauryaas-projects\.vercel\.app$/i.test(origin);
+    const isAllowedOrigin =
+      !origin ||
+      origin === frontendUrl ||
+      origin === "http://localhost:3000" ||
+      origin === "http://127.0.0.1:3000" ||
+      isProjectDeployment;
+
+    callback(null, isAllowedOrigin);
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 }));

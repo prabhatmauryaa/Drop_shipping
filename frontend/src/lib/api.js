@@ -8,6 +8,7 @@ export const isLocalEnvironment = isClient
   ? (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.hostname === "::1")
   : (process.env.NODE_ENV !== "production");
 
+const DEFAULT_PRODUCTION_API_URL = "https://drop-shipping-yfnt.onrender.com/api";
 const rawEnvApiUrl = (process.env.NEXT_PUBLIC_API_URL || "").trim().replace(/\/+$/, "");
 const rawEnvBackendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim().replace(/\/+$/, "");
 
@@ -19,14 +20,16 @@ const rawEnvBackendUrl = (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim().repl
  */
 export const getApiBaseUrl = () => {
   if (rawEnvApiUrl) {
-    // If hosted on Vercel but user accidentally put localhost in env
-    if (isClient && !isLocalEnvironment && (rawEnvApiUrl.includes("localhost") || rawEnvApiUrl.includes("127.0.0.1"))) {
-      console.warn(
-        "[Dropsync Warning] NEXT_PUBLIC_API_URL contains 'localhost' on a hosted website (" +
-        window.location.origin +
-        "). Localhost requests blocked to prevent browser security popups."
-      );
-      return "";
+    const pointsToLocalhost = rawEnvApiUrl.includes("localhost") || rawEnvApiUrl.includes("127.0.0.1");
+    if (!isLocalEnvironment && pointsToLocalhost) {
+      if (isClient) {
+        console.warn(
+          "[Dropsync Warning] NEXT_PUBLIC_API_URL contains 'localhost' on a hosted website (" +
+          window.location.origin +
+          "). Using the configured production backend instead."
+        );
+      }
+      return DEFAULT_PRODUCTION_API_URL;
     }
     return rawEnvApiUrl;
   }
@@ -36,8 +39,7 @@ export const getApiBaseUrl = () => {
     return "http://localhost:5000/api";
   }
 
-  // Hosted production without NEXT_PUBLIC_API_URL configured yet
-  return "";
+  return DEFAULT_PRODUCTION_API_URL;
 };
 
 export const API_BASE_URL = getApiBaseUrl();
@@ -48,7 +50,7 @@ export const API_BASE_URL = getApiBaseUrl();
 export const getBackendUrl = () => {
   if (rawEnvBackendUrl) {
     if (isClient && !isLocalEnvironment && (rawEnvBackendUrl.includes("localhost") || rawEnvBackendUrl.includes("127.0.0.1"))) {
-      return "";
+      return getApiBaseUrl().replace(/\/api\/?$/, "");
     }
     return rawEnvBackendUrl;
   }
