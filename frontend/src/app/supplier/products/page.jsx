@@ -74,6 +74,7 @@ export default function SupplierProductsPage() {
 
   const handleFileUpload = async (e, setFieldValue, currentImages) => {
     const files = Array.from(e.target.files);
+    e.target.value = "";
     if (files.length === 0) return;
 
     if (currentImages.length + files.length > 5) {
