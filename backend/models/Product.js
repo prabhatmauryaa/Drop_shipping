@@ -59,6 +59,7 @@ const productSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "approved", "rejected", "active", "draft", "out_of_stock"],
       default: "pending",
+      index: true,
     },
   },
   { timestamps: true }

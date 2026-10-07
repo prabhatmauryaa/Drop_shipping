@@ -24,6 +24,8 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const app = express();
 
+app.set("trust proxy", 1);
+
 const frontendUrl =
   process.env.FRONTEND_URL ||
   "https://drop-shipping-jyvq2oej1-prabhatmauryaas-projects.vercel.app";

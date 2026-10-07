@@ -222,14 +222,11 @@ function ProductsContent() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map((product, idx) => {
+              {filteredProducts.map((product) => {
                 const img = getImageUrl(product.imageUrl || (product.images && product.images[0]));
                 return (
                   <motion.div
                     key={product._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
                     whileHover={{ y: -5 }}
                     onClick={() => router.push(`/product/${product._id}`)}
                     className="glass rounded-2xl overflow-hidden border border-slate-700/50 hover:border-slate-500 hover:shadow-2xl hover:shadow-blue-500/10 transition-all flex flex-col group cursor-pointer"
@@ -239,6 +236,8 @@ function ProductsContent() {
                         <img
                           src={img}
                           alt={product.title}
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-700"
                           onError={(e) => { e.target.src = "/placeholder-product.svg"; }}
                         />

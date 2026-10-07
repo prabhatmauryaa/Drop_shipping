@@ -36,7 +36,11 @@ const normalizeProduct = (p, req) => {
 // Get All Approved/Active Products (Public)
 router.get("/", async (req, res) => {
   try {
-    const products = await Product.find({ status: { $in: ["approved", "active"] } }).populate("supplier", "name email").populate("seller", "name email");
+    const products = await Product.find({ status: { $in: ["approved", "active"] } })
+      .select("title description price stock category images imageUrl sizes supplier seller status")
+      .populate("supplier", "name email")
+      .populate("seller", "name email")
+      .lean();
     res.status(200).json(products.map(p => normalizeProduct(p, req)));
   } catch (error) {
     console.log(error);

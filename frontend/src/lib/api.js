@@ -190,6 +190,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    if (
+      isClient &&
+      error.response?.status === 401 &&
+      error.config?.headers?.Authorization
+    ) {
+      localStorage.removeItem("dropsync_token");
+      localStorage.removeItem("dropsync_user");
+    }
     error.userFriendlyMessage = getErrorMessage(error);
     return Promise.reject(error);
   }

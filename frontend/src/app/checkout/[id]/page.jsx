@@ -46,11 +46,13 @@ function CheckoutContent({ params }) {
 
         const fetchProduct = async () => {
             try {
-                const res = await api.get("/products");
-                const found = res.data.find(p => p._id === id);
-                if (found) setProduct(found);
-                else toast.error("Product not found");
+                const res = await api.get(`/products/single/${id}`);
+                setProduct(res.data);
             } catch (err) {
+                if (err.response?.status === 404) {
+                    toast.error("Product not found");
+                    return;
+                }
                 toast.error("Failed to load product details");
             } finally {
                 setLoading(false);
@@ -103,10 +105,11 @@ function CheckoutContent({ params }) {
             }
             else if (paymentMethod === "Razorpay") {
                 toast.loading("Initializing Secure Payment...", { id: "payment" });
+                const keyRes = await api.get("/payments/key");
                 const orderRes = await api.post("/payments/create-order", { amount: totalPrice });
 
                 const options = {
-                    key: "rzp_test_dummykey12345",
+                    key: keyRes.data.key,
                     amount: orderRes.data.amount,
                     currency: "INR",
                     name: "Vastra culture Marketplace",
@@ -120,7 +123,13 @@ function CheckoutContent({ params }) {
                             toast.success("Payment Successful! Order Confirmed.", { id: "payment" });
                             setTimeout(() => window.location.href = "/dashboard", 1500);
                         } catch (err) {
-                            toast.error("Payment Verification Failed", { id: "payment" });
+                            toast.error(
+                                err.response?.data?.message || "Payment Verification Failed",
+                                { id: "payment" }
+                            );
+                            if (err.response?.status === 401) {
+                                setTimeout(() => router.push("/login"), 1200);
+                            }
                             setIsProcessing(false);
                         }
                     },
@@ -137,7 +146,11 @@ function CheckoutContent({ params }) {
                 });
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to complete checkout process");
+            const message = error.response?.data?.message || "Failed to complete checkout process";
+            toast.error(message);
+            if (error.response?.status === 401) {
+                setTimeout(() => router.push("/login"), 1200);
+            }
             setIsProcessing(false);
         }
     };
@@ -148,7 +161,7 @@ function CheckoutContent({ params }) {
 
     return (
         <div className="min-h-screen w-full relative pt-24 px-4 pb-20 max-w-5xl mx-auto flex flex-col">
-            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
             <Toaster position="top-center" />
 
             <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />

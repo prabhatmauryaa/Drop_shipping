@@ -3,19 +3,22 @@ const jwt = require("jsonwebtoken");
 const JWT_SECRET = process.env.JWT_SECRET || "dropshipping_super_secret_key";
 
 const authMiddleware = (req, res, next) => {
- const token = req.header("Authorization");
- if (!token) return res.status(401).json({ message: "Access Denied, No Token Provided" });
+ const authorization = req.header("Authorization");
+ if (!authorization) {
+  return res.status(401).json({ message: "Access denied. Please log in to continue." });
+ }
 
  try {
- let cleanToken = token.replace("Bearer", "").trim();
- // Remove any accidentally stored double or single quotes
- cleanToken = cleanToken.replace(/^["']|["']$/g, '');
- 
+ const cleanToken = authorization.replace(/^Bearer\s+/i, "").trim().replace(/^["']|["']$/g, "");
+ if (!cleanToken) {
+  return res.status(401).json({ message: "Invalid or expired token. Please log in again." });
+ }
+
  const decoded = jwt.verify(cleanToken, JWT_SECRET);
  req.user = decoded;
  next();
  } catch (error) {
- res.status(400).json({ message: "Invalid Token" });
+ res.status(401).json({ message: "Invalid or expired token. Please log in again." });
  }
 };
 

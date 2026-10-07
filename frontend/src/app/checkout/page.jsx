@@ -219,7 +219,13 @@ function CheckoutContent() {
                             toast.success("Payment Successful! Order Confirmed.", { id: "payment" });
                             setTimeout(() => window.location.href = "/dashboard", 1500);
                         } catch (err) {
-                            toast.error("Payment Verification Failed", { id: "payment" });
+                            toast.error(
+                                err.response?.data?.message || "Payment Verification Failed",
+                                { id: "payment" }
+                            );
+                            if (err.response?.status === 401) {
+                                setTimeout(() => router.push("/login"), 1200);
+                            }
                             setIsProcessing(false);
                         }
                     },
@@ -236,7 +242,11 @@ function CheckoutContent() {
                 });
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to complete checkout process");
+            const message = error.response?.data?.message || "Failed to complete checkout process";
+            toast.error(message);
+            if (error.response?.status === 401) {
+                setTimeout(() => router.push("/login"), 1200);
+            }
             setIsProcessing(false);
         }
     };
@@ -249,7 +259,7 @@ function CheckoutContent() {
 
     return (
         <div className="min-h-screen w-full relative pt-24 px-4 pb-20 max-w-5xl mx-auto flex flex-col">
-            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
+            <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
             <Toaster position="top-center" />
 
             <div className="absolute top-[20%] right-[10%] w-[30%] h-[30%] bg-blue-600/10 rounded-full blur-[120px] pointer-events-none -z-10" />

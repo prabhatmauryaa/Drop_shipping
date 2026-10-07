@@ -194,7 +194,7 @@ export default function Navbar() {
 
     return (
         <header
-            className={`sticky top-0 left-0 right-0 z-50 transition-all duration-300 transform ${isVisible ? "translate-y-0" : "-translate-y-full"} ${isScrolled ? "bg-slate-900/80 backdrop-blur-md border-b border-white/10 shadow-lg py-3" : "bg-transparent py-4"
+            className={`sticky top-0 left-0 right-0 z-50 transform-gpu transition-[transform,background-color,box-shadow] duration-300 ${isVisible ? "translate-y-0" : "-translate-y-full"} ${isScrolled ? "bg-slate-900/90 backdrop-blur-md shadow-lg py-3" : "bg-transparent shadow-none py-3"
                 }`}
         >
             <div className="max-w-7xl mx-auto px-6 h-12 flex items-center justify-between relative">
